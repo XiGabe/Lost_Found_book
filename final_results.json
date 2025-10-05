@@ -1,0 +1,48 @@
+{
+  "file_path": "e2e_results/system_results.txt",
+  "scan_results": {
+    "total_blocks": 61,
+    "br_components_found": 25,
+    "books_grouped": 8,
+    "call_numbers_extracted": 3
+  },
+  "call_numbers": [
+    "BR 330 E5 1955 v.28",
+    "BR 330 E5",
+    "BR 330 E5 1955 V.29"
+  ],
+  "validation": {
+    "misplaced_books": [],
+    "total_books": 3,
+    "correctly_placed": 3
+  },
+  "detailed_call_numbers": [
+    {
+      "call_number": "BR 330 E5 1955 v.28",
+      "letters": "BR",
+      "numbers": 330.0,
+      "cutter": "E5",
+      "year": 1955,
+      "volume": "v.28",
+      "confidence": 0.9764296054840088
+    },
+    {
+      "call_number": "BR 330 E5",
+      "letters": "BR",
+      "numbers": 330.0,
+      "cutter": "E5",
+      "year": null,
+      "volume": null,
+      "confidence": 0.9917358309030533
+    },
+    {
+      "call_number": "BR 330 E5 1955 V.29",
+      "letters": "BR",
+      "numbers": 330.0,
+      "cutter": "E5",
+      "year": 1955,
+      "volume": "V.29",
+      "confidence": 0.9897789444242205
+    }
+  ]
+}
