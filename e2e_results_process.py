@@ -29,12 +29,16 @@ class Dataset5Integration:
     def process_dataset5(self) -> Dict:
         """处理dataset5的所有OCR数据，只聚合transcription"""
         files = [
-            'e2e_results/dataset5_img_1.txt',
-            'e2e_results/dataset5_img_2.txt',
-            'e2e_results/dataset5_img_3.txt',
-            'e2e_results/dataset5_img_4.txt',
-            'e2e_results/dataset5_img_5.txt',
-            'e2e_results/dataset5_img_6.txt'
+            'e2e_results/1.txt',
+            'e2e_results/2.txt',
+            'e2e_results/3.txt',
+            'e2e_results/4.txt',
+            'e2e_results/5.txt',
+            'e2e_results/6.txt',
+            'e2e_results/7.txt',
+            'e2e_results/8.txt',
+            'e2e_results/9.txt',
+            'e2e_results/10.txt',
         ]
 
         all_books = []
