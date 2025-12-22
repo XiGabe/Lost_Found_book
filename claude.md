@@ -1,524 +1,204 @@
-# Lost Book Robot - 智能图书馆书籍错位检测系统
+# Lost Book Robot - 智能图书馆书籍错位检测系统 (V2.0)
 
-## 项目概述
+## 📖 项目概述
 
-Lost Book Robot是一个用于自动检测图书馆书籍错位的智能机器人系统。该系统通过计算机视觉和OCR技术识别书脊上的Call Number，结合深度学习模型验证书籍是否按照LC（Library of Congress）分类规则正确排列。
+Lost Book Robot 是一个用于自动检测图书馆书籍错位的智能机器人系统。本项目采用**端到端（End-to-End）**的视觉处理方案，利用 Jetson Orin Nano 的边缘计算能力，通过“单帧全量计算”策略，实时判断书架上书籍的排序是否符合美国国会图书馆分类法（LC Classification）。
 
-## 系统架构 (重构版)
+**核心技术革新 (V2.0)**：
 
-### 整体架构
-```
-图像采集 → 书脊分割 → 单书OCR → 特征提取 → 神经网络验证 → 结果输出
-```
-
-### 核心模块分工
-
-#### 🔧 硬件层面 (机器人团队负责)
-- **移动平台控制**：机器人沿书架移动和定位
-- **图像采集系统**：相机参数控制、图像质量优化
-- **照明系统**：确保拍摄环境的一致性
-- **硬件集成**：将OCR系统整合到机器人平台
-
-#### 🧠 算法层面 (当前专注)
-1. **书脊分割模块**：从整张书架图像中精确分割出每个书脊
-2. **OCR处理模块**：对单个书脊图像进行文字识别
-3. **特征提取模块**：提取transcription、空间坐标、置信度等特征
-4. **神经网络验证模块**：判断书籍位置正确性
-
-## 当前开发策略
-
-### 🎯 开发优先级
-
-#### **阶段1：端到端图像处理 pipeline** (当前重点)
-```
-目标：实现从原始图像到分割后单本书脊的完整流程
-
-核心任务：
-1. 书脊分割算法 (YOLO深度学习方法)
-   - YOLOv8目标检测模型训练和优化
-   - 书脊数据集标注和准备
-   - 模型推理和后处理优化
-   - 透视变换与图像矫正
-
-2. 单书脊OCR优化
-   - 图像预处理 (去噪、增强)
-   - OCR引擎参数调优 (保持现有OpenOCR)
-   - 连续拍摄的数据关联
-
-输出：标准化的单本书脊数据
-```
-
-#### **阶段2：神经网络训练系统** (后续专注)
-```
-目标：训练智能位置验证模型
-
-核心任务：
-1. 训练数据构建
-   - 图书馆管理系统数据对接
-   - 特征工程与标准化
-   - 正负样本采集
-
-2. 模型开发
-   - 网络架构设计
-   - 训练pipeline搭建
-   - 模型评估与优化
-
-输出：高精度的位置验证模型
-```
-
-## 技术实现细节
-
-### 📋 数据流设计
-
-#### 输入数据格式
-```json
-{
-  "image_id": "shelf_001_001",
-  "timestamp": "2025-10-06T16:30:00Z",
-  "position_data": {
-    "robot_position": {"x": 1.5, "y": 3.2, "z": 0.0},
-    "camera_angle": 0,
-    "shelf_id": "A3-2"
-  },
-  "image_data": "base64_encoded_image"
-}
-```
-
-#### 书脊分割输出
-```json
-{
-  "spine_id": "spine_001",
-  "original_image": "shelf_001_001.png",
-  "spine_image": "spine_001.png",
-  "bounding_box": {
-    "x": 120, "y": 50, "width": 80, "height": 300
-  },
-  "confidence": 0.95,
-  "position_in_shelf": 3
-}
-```
-
-#### OCR处理输出
-```json
-{
-  "spine_id": "spine_001",
-  "transcriptions": [
-    {"text": "OLIN", "confidence": 0.998, "position": [23, 7]},
-    {"text": "BV", "confidence": 0.984, "position": [26, 48]},
-    {"text": "4208", "confidence": 0.998, "position": [30, 86]},
-    {"text": ".G7", "confidence": 0.994, "position": [32, 126]},
-    {"text": "T44X", "confidence": 0.907, "position": [36, 168]},
-    {"text": "1995", "confidence": 0.999, "position": [38, 204]}
-  ],
-  "reconstructed_call_number": "OLIN BV 4208 .G7 T44X 1995",
-  "spatial_center": [82.0, 127.0],
-  "overall_confidence": 0.980
-}
-```
-
-### 🛠️ 核心算法设计
-
-#### YOLO书脊分割算法
-```python
-from ultralytics import YOLO
-import cv2
-import numpy as np
-
-class YOLOSpineSegmentator:
-    def __init__(self, model_path="yolov8n_spine.pt"):
-        """
-        初始化YOLO书脊检测器
-
-        Args:
-            model_path: 训练好的书脊检测模型路径
-        """
-        self.model = YOLO(model_path)
-        self.confidence_threshold = 0.5
-
-    def extract_spines(self, shelf_image):
-        """
-        使用YOLO从书架图像中提取所有书脊
-
-        Args:
-            shelf_image: 书架图像 (H, W, 3)
-
-        Returns:
-            List[Dict]: 检测到的书脊信息列表
-        """
-        # 1. YOLO推理
-        results = self.model(shelf_image, conf=self.confidence_threshold)
-
-        spine_detections = []
-        for result in results:
-            boxes = result.boxes
-
-            # 按x坐标排序，确保从左到右的顺序
-            if len(boxes) > 0:
-                # 转换为numpy数组便于排序
-                detections = []
-                for box in boxes:
-                    x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
-                    confidence = box.conf[0].cpu().numpy()
-
-                    detections.append({
-                        'bbox': [int(x1), int(y1), int(x2), int(y2)],
-                        'confidence': float(confidence),
-                        'center_x': (x1 + x2) / 2
-                    })
-
-                # 按center_x排序
-                detections.sort(key=lambda x: x['center_x'])
-                spine_detections.extend(detections)
-
-        # 2. 提取书脊图像和透视矫正
-        processed_spines = []
-        for i, detection in enumerate(spine_detections):
-            x1, y1, x2, y2 = detection['bbox']
-
-            # 提取书脊区域
-            spine_image = shelf_image[y1:y2, x1:x2]
-
-            # 透视矫正
-            corrected_spine = self._perspective_correction(spine_image)
-
-            processed_spine = {
-                'spine_id': f"spine_{i+1:03d}",
-                'bbox': detection['bbox'],
-                'confidence': detection['confidence'],
-                'spine_image': corrected_spine,
-                'position_in_shelf': i + 1
-            }
-            processed_spines.append(processed_spine)
-
-        return processed_spines
-
-    def _perspective_correction(self, spine_image):
-        """
-        对书脊图像进行透视矫正
-
-        Args:
-            spine_image: 单个书脊图像
-
-        Returns:
-            np.ndarray: 矫正后的书脊图像
-        """
-        # 实现透视矫正逻辑
-        # 可以使用Harris角点检测 + 透视变换
-        # 或者简单的几何矫正
-        return spine_image  # 简化实现
-```
-
-#### YOLO模型训练流程
-```python
-from modules.yolo_spine_detector.yolo_trainer import YOLOSpineTrainer, TrainingConfig
-
-def train_spine_detection_model():
-    """
-    训练书脊检测YOLO模型的完整流程
-    """
-    # 1. 训练配置
-    config = TrainingConfig(
-        model_size="yolov8n.pt",  # 使用nano版本，速度快
-        epochs=100,
-        batch_size=16,
-        device="0"  # GPU设备
-    )
-
-    # 2. 创建训练器
-    trainer = YOLOSpineTrainer(config)
-
-    # 3. 准备数据集
-    dataset_yaml = trainer.prepare_data("./yolo_dataset")
-
-    # 4. 开始训练
-    results = trainer.train_model(dataset_yaml)
-
-    # 5. 评估模型
-    trainer.evaluate_model(dataset_yaml)
-
-    return results
-
-# 数据集准备
-# 需要准备以下结构的数据集:
-# yolo_dataset/
-# ├── images/
-# │   ├── train/
-# │   ├── val/
-# │   └── test/
-# └── labels/
-#     ├── train/
-#     ├── val/
-#     └── test/
-```
-
-#### 连续图像关联算法
-```python
-class SequenceProcessor:
-    def __init__(self):
-        self.feature_matcher = FeatureMatcher()
-        self.position_tracker = PositionTracker()
-
-    def process_sequence(self, image_sequence):
-        tracked_books = []
-
-        for i, image in enumerate(image_sequence):
-            # 1. 分割当前图像的书脊
-            current_spines = self.segment_spines(image)
-
-            # 2. 与前一帧进行特征匹配
-            if i > 0:
-                matched_pairs = self.feature_matcher.match(
-                    previous_spines, current_spines
-                )
-
-                # 3. 更新位置追踪
-                tracked_books = self.position_tracker.update(
-                    tracked_books, matched_pairs
-                )
-
-            previous_spines = current_spines
-
-        return tracked_books
-```
-
-## 数据管理策略
-
-### 📊 训练数据收集
-
-#### 数据来源
-1. **图书馆管理系统**：获取准确的书籍位置信息
-2. **机器人扫描数据**：收集真实场景的图像和OCR结果
-3. **人工标注数据**：专家验证的错位/正确样本
-
-#### 数据格式标准
-```json
-{
-  "sample_id": "train_001",
-  "library_data": {
-    "call_number": "BV 4208 .G7 T44X 1995",
-    "correct_position": {"aisle": "A", "shelf": 3, "position": 5},
-    "title": "Book Title",
-    "author": "Author Name"
-  },
-  "scan_data": {
-    "image_path": "scans/A3/shelf3/001.png",
-    "spine_image": "spines/spine_001.png",
-    "ocr_result": {...},
-    "extracted_features": {
-      "transcription": "OLIN BV 4208 .G7 T44X 1995",
-      "spatial_center": [82.0, 127.0],
-      "confidence": 0.980,
-      "position_in_shelf": 5
-    }
-  },
-  "label": {
-    "is_correct": true,
-    "actual_position": 5,
-    "should_be_position": 5,
-    "confidence_score": 0.95
-  }
-}
-```
-
-### 🔄 模型训练流程
-
-#### 特征工程
-```python
-def extract_training_features(ocr_result, library_data):
-    features = {
-        # 空间特征
-        "relative_x": ocr_result["spatial_center"][0] / image_width,
-        "relative_y": ocr_result["spatial_center"][1] / image_height,
-        "position_ratio": ocr_result["position_in_shelf"] / total_books,
-
-        # OCR置信度特征
-        "avg_confidence": ocr_result["overall_confidence"],
-        "min_confidence": min([t["confidence"] for t in ocr_result["transcriptions"]]),
-        "confidence_variance": calculate_confidence_variance(ocr_result),
-
-        # 文本特征
-        "call_number_length": len(ocr_result["reconstructed_call_number"]),
-        "text_embedding": get_text_embedding(ocr_result["reconstructed_call_number"]),
-
-        # 位置匹配特征
-        "position_match": 1 if ocr_result["position_in_shelf"] == library_data["correct_position"]["position"] else 0,
-        "position_offset": abs(ocr_result["position_in_shelf"] - library_data["correct_position"]["position"])
-    }
-
-    return features
-```
-
-## 开发工具和框架
-
-### 💻 核心技术栈
-- **图像处理**: OpenCV, Scikit-image
-- **OCR引擎**: OpenOCR (已验证95%+准确率)
-- **深度学习**: YOLOv8 (Ultralytics), PyTorch
-- **数据处理**: NumPy, Pandas
-- **计算机视觉**: Ultralytics YOLO生态系统
-- **版本控制**: Git
-
-### 🧪 测试框架
-```python
-class TestFramework:
-    def __init__(self):
-        self.image_tests = ImageTestSuite()
-        self.ocr_tests = OCRTestSuite()
-        self.model_tests = ModelTestSuite()
-
-    def run_comprehensive_tests(self):
-        # 1. 书脊分割准确性测试
-        segmentation_accuracy = self.image_tests.test_segmentation()
-
-        # 2. OCR识别准确性测试
-        ocr_accuracy = self.ocr_tests.test_recognition()
-
-        # 3. 连续处理稳定性测试
-        sequence_stability = self.image_tests.test_sequence_processing()
-
-        # 4. 端到端性能测试
-        e2e_performance = self.test_end_to_end()
-
-        return {
-            "segmentation_accuracy": segmentation_accuracy,
-            "ocr_accuracy": ocr_accuracy,
-            "sequence_stability": sequence_stability,
-            "e2e_performance": e2e_performance
-        }
-```
-
-## 项目里程碑
-
-### 🎯 Phase 1: 图像处理 Pipeline (当前)
-- [x] 基础OCR引擎集成 (OpenOCR 95%+准确率)
-- [x] 批量图像处理框架
-- [ ] YOLO书脊检测模型训练
-  - [ ] 数据集标注和准备
-  - [ ] YOLOv8模型训练
-  - [ ] 模型评估和优化
-- [ ] 书脊检测推理集成
-- [ ] 连续图像数据关联
-- [ ] 性能优化和测试
-
-### 🧠 Phase 2: 神经网络开发 (后续)
-- [ ] 训练数据收集和标注
-- [ ] 特征提取系统
-- [ ] 神经网络模型设计
-- [ ] 模型训练和验证
-- [ ] 模型部署和集成
-
-### 🤖 Phase 3: 机器人集成 (机器人团队)
-- [ ] 硬件接口开发
-- [ ] 实时处理优化
-- [ ] 现场测试和调试
-- [ ] 系统集成和交付
-
-## 性能指标
-
-### 📈 图像处理指标
-- **书脊分割准确率**: > 95%
-- **分割处理速度**: < 0.5秒/图像
-- **OCR识别准确率**: > 90%
-- **连续追踪稳定性**: > 98%
-
-### 🎯 神经网络指标
-- **位置判断准确率**: > 95%
-- **错位检测召回率**: > 90%
-- **假阳性率**: < 5%
-- **推理速度**: < 10ms/书籍
-
-## 风险评估与应对
-
-### ⚠️ 技术风险
-1. **YOLO模型训练数据需求**
-   - 风险：需要大量标注数据（建议500-1000张图像）
-   - 应对：数据增强、半自动标注、迁移学习
-
-2. **书脊分割准确性**
-   - 风险：密集排列、相似外观书籍的检测挑战
-   - 应对：高质量标注、模型优化、后处理过滤
-
-3. **OCR识别错误** (风险较低，已验证)
-   - 风险：字体模糊、特殊字符
-   - 应对：OpenOCR已证明95%+准确率，保持现有方案
-
-4. **模型推理速度**
-   - 风险：实时处理性能要求
-   - 应对：使用YOLOv8n(nano)版本，GPU加速
-
-## 📁 项目文件结构
-
-```
-OCR/
-├── claude.md                              # 项目文档（本文件）
-├── batch_ocr_processor.py                 # 批量OCR处理器
-├── dataset5_integration.py                # 数据聚合工具
-├── main.py                                # 主程序入口
-├── data/
-│   └── dataset1/                          # 测试数据集
-├── ocr_results/                           # OCR输出结果
-├── e2e_results/                           # 端到端测试结果
-├── modules/                               # 核心模块
-│   ├── yolo_spine_detector/               # YOLO书脊检测模块
-│   │   ├── yolo_trainer.py               # YOLO模型训练器
-│   │   ├── yolo_inference.py             # YOLO推理接口
-│   │   └── data_preparation.py           # 数据准备工具
-│   ├── ocr_processing/                   # OCR处理模块
-│   ├── feature_extraction/               # 特征提取模块
-│   └── neural_network/                   # 神经网络模块
-├── yolo_dataset/                          # YOLO训练数据集
-│   ├── images/                           # 图像数据
-│   │   ├── train/
-│   │   ├── val/
-│   │   └── test/
-│   └── labels/                           # 标注数据
-│       ├── train/
-│       ├── val/
-│       └── test/
-├── runs/detect/spine_detector/            # YOLO训练结果
-│   └── weights/
-│       ├── best.pt                       # 最佳模型
-│       └── last.pt                       # 最新模型
-├── tests/                                # 测试代码
-├── utils/                                # 工具函数
-└── docs/                                 # 文档
-```
-
-## 📞 联系信息
-
-**项目负责人**: Hongxi Chen
-**技术方向**: 计算机视觉 + 深度学习
-**当前专注**: 书脊分割与OCR优化
-**协作方式**: 提供标准化数据接口，机器人团队负责硬件集成
+1. **视觉前端**：使用 **YOLOv8 实例分割** 同时检测“书脊”和“索书号标签”，解决无标签书籍漏检问题。
+2. **排序核心**：放弃传统规则匹配，采用 **Bi-LSTM 孪生网络 (Siamese Network)** 直接比较两本书的 OCR 字符串，具备极强的 OCR 容错能力。
+3. **逻辑推断**：引入“数据库夹击验证（Gap-Filling）”策略，通过左右邻居推断无法识别的“幽灵书”。
 
 ---
 
-**文档版本**: 3.0
-**创建日期**: 2025-10-06
-**最后更新**: 2025-11-04
-**维护者**: Hongxi Chen
+## 🏗 系统架构
 
-## 🎯 当前状态
-- **🔄 进行中**: YOLO书脊检测模型开发
-  - [x] YOLO训练器框架完成
-  - [ ] 数据集标注和准备
-  - [ ] 模型训练和优化
-- **✅ 已完成**: 基础OCR处理框架 (OpenOCR 95%+准确率)
-- **⏳ 待开始**: 神经网络训练系统 (位置验证)
+### 整体数据流
 
-## 🚀 YOLO方案实施路线图
+```mermaid
+graph TD
+    Camera[相机采集] --> YOLO[YOLOv8 实例分割]
+    
+    subgraph "视觉预处理"
+    YOLO -->|Class: Book Spine| CropSpine[裁剪书脊图]
+    YOLO -->|Class: Call Label| CropLabel[裁剪标签图]
+    end
+    
+    subgraph "文字识别"
+    CropLabel --> OpenOCR[OpenOCR 引擎]
+    CropSpine -->|无标签时| OpenOCR
+    end
+    
+    subgraph "逻辑验证 (Jetson Orin)"
+    OpenOCR -->|OCR String List| SlidingWindow[滑动窗口配对]
+    SlidingWindow -->|Pair (A, B)| BiLSTM[Bi-LSTM 比较器]
+    
+    BiLSTM -->|Out_of_Order| Alarm[错位报警]
+    BiLSTM -->|Duplicate| Ignore[忽略]
+    BiLSTM -->|In_Order| Pass[通过]
+    end
+    
+    subgraph "异常处理"
+    CropSpine -->|无文字/无标签| DBCheck[数据库邻居推断]
+    end
 
-### 第1步：数据准备 (1-2周)
-- [ ] 收集500-1000张书架图像
-- [ ] 使用标注工具制作YOLO格式数据集
-- [ ] 数据集划分为训练/验证/测试集
+```
 
-### 第2步：模型训练 (2-3周)
-- [ ] 使用YOLOv8n进行训练
-- [ ] 模型调优和超参数搜索
-- [ ] 性能评估和迭代优化
+---
 
-### 第3步：系统集成 (1-2周)
-- [ ] 集成YOLO推理接口
-- [ ] 端到端测试和性能优化
-- [ ] 部署和集成测试
+## 🧠 核心算法详解
+
+### 1. 视觉感知：YOLOv8 双层分割
+
+**目标**：从复杂背景中提取出物理书脊，并定位索书号区域。
+
+* **模型**：YOLOv8-Seg (Instance Segmentation)
+* **检测类别 (Classes)**：
+1. `book_spine` (书脊)：覆盖整本书侧面（使用多边形标注以适应倾斜）。
+2. `call_label` (标签)：覆盖白色索书号贴纸。
+
+
+* **后处理逻辑**：
+* 计算包含关系：如果 `call_label` 的中心点位于某 `book_spine` 的 Mask 内，则判定为该书的标签。
+* **有标书**：裁剪 `call_label` 区域送入 OCR。
+* **无标书**：裁剪 `book_spine` 底部 1/4 区域（针对印制文字）或全书脊（用于数据库指纹匹配）。
+
+
+
+### 2. 文字识别：OpenOCR
+
+**目标**：将图像像素转化为文本字符串。
+
+* **引擎**：OpenOCR (已验证，准确率 > 95%，速度 ~0.05s/图)。
+* **策略**：不修改模型，直接调用。容忍 OCR 产生的噪声（如 `1` 变 `I`, `B` 变 `8`），交由下游神经网络处理。
+
+### 3. 排序验证：DeepSort-Comparator (Bi-LSTM)
+
+**目标**：在不进行复杂规则解析的情况下，判断两个 OCR 字符串的排序关系。
+
+* **架构**：**Siamese Bi-LSTM (孪生双向长短期记忆网络)**
+* **输入**：字符级 Tokenizer (Char-level)，保留 `|` 分隔符和 OCR 噪声。
+* **Backbone**：共享权重的 2层 Bi-LSTM，提取序列特征。
+* **Head**：将两个特征向量拼接，通过 MLP 分类。
+
+
+* **输出类别**：
+* `0: In_Order` (顺序正确：A < B)
+* `1: Out_of_Order` (错位：A > B) —— **核心报警触发条件**
+* `2: Duplicate` (重复/重影：A ≈ B)
+
+
+* **优势**：
+* 自动学习 LC 分类法的层级权重（字母 > 数字 > 小数）。
+* 自动忽略无效前缀（如 `OLIN`, `REF`）。
+* 极强的鲁棒性，能处理模糊、缺损字符。
+
+
+
+### 4. 异常推断：数据库夹击法 (Gap-Filling)
+
+**目标**：处理 OCR 失败或完全无特征的“幽灵书”。
+
+* **触发条件**：YOLO 检测到 `book_spine` 但无法提取有效文本。
+* **逻辑**：
+1. **锚定**：识别左邻居 A 和右邻居 C。
+2. **查询**：访问图书馆数据库，查询 A 和 C 之间应有的书籍 B。
+3. **验证**：
+* **数量验证**：视觉检测到的无标书数量 == 数据库记录数量？
+* **内容验证**：对无标书脊进行全图 OCR，匹配数据库中的 Title/Author 关键词。
+
+
+4. **决策**：如果验证通过，则认为位置正确，不报警。
+
+
+
+---
+
+## 📊 数据策略
+
+### 1. YOLO 训练数据 (真实数据)
+
+* **来源**：真实拍摄的书架视频/照片。
+* **标注方式**：
+* 使用 CVAT 或 LabelImg。
+* **必须使用多边形 (Polygon)** 标注书脊，防止重叠干扰。
+* **双类标注**：每本书同时画 `book_spine` 和 `call_label`（如果有）。
+
+
+* **规模**：约 500-1000 张图像。
+
+### 2. Bi-LSTM 训练数据 (合成数据)
+
+* **来源**：**完全合成 (Synthetic Generation)**，无需人工标注真实对子。
+* **生成脚本 (`data_gen.py`)**：
+1. **规则生成**：利用 Python 脚本批量生成符合 LC 规则的正确排序对子。
+2. **噪声注入 (关键)**：
+* **字符替换**：随机将 `1`->`I`, `0`->`O`, `8`->`B`。
+* **前缀干扰**：随机添加/删除 `OLIN`, `REF` 等前缀。
+* **格式干扰**：随机删除 `.`，随机替换换行符 `|` 为空格。
+
+
+3. **负样本构造**：翻转正确对子生成 `Out_of_Order` 样本。
+
+
+* **规模**：可生成 10万+ 对样本，确保模型充分收敛。
+
+---
+
+## 🗓 开发路线图 (Roadmap)
+
+### Phase 1: 视觉前端构建 (当前重点)
+
+* [ ] **数据采集**：拍摄书架视频，截取关键帧。
+* [ ] **数据标注**：完成 `spine` + `label` 的多边形标注。
+* [ ] **YOLO 训练**：训练 YOLOv8-Seg(nano) 模型，并部署推理脚本。
+* [ ] **裁图流水线**：实现 `detect -> crop -> ocr` 的完整 Python 流程。
+
+### Phase 2: 神经网络核心开发
+
+* [ ] **数据生成器**：编写 `data_gen.py`，生成带有 OCR 噪声的 LC 索书号对子。
+* [ ] **模型搭建**：使用 PyTorch 实现 Bi-LSTM Siamese Network。
+* [ ] **模型训练**：在合成数据集上训练，验证准确率 > 98%。
+* [ ] **端到端测试**：将 OCR 输出接入网络，测试真实图片的排序判断。
+
+### Phase 3: 系统集成与推断逻辑
+
+* [ ] **滑动窗口逻辑**：实现单帧内的 `check(A,B), check(B,C)...` 循环。
+* [ ] **数据库接口**：模拟一个简单的 Library DB（JSON/SQLite）。
+* [ ] **推断模块**：实现“无标书”的数据库查验逻辑。
+* [ ] **Jetson 部署**：在 Orin Nano 上进行性能优化（TensorRT 可选）。
+
+---
+
+## 📁 建议文件结构
+
+```
+LostBookRobot/
+├── data/
+│   ├── raw_images/           # 原始书架照片
+│   ├── yolo_dataset/         # 标注好的 YOLO 数据
+│   └── synthetic_pairs/      # 生成的 LSTM 训练数据
+├── modules/
+│   ├── vision/
+│   │   ├── yolo_inference.py # YOLO 推理与裁剪
+│   │   └── ocr_wrapper.py    # OpenOCR 调用封装
+│   ├── logic/
+│   │   ├── comparator.py     # Bi-LSTM 网络定义
+│   │   ├── train_lstm.py     # 网络训练脚本
+│   │   └── data_gen.py       # 合成数据生成器 
+│   └── database/
+│       └── library_db.py     # 模拟数据库接口
+├── weights/
+│   ├── best_yolo.pt          # 训练好的 YOLO 模型
+│   └── comparator.pth        # 训练好的 LSTM 模型
+├── main_pipeline.py          # 主程序：串联整个流程
+└── requirements.txt
+
+```
+
+---
+
+**文档维护者**: Hongxi Chen
+**最后更新**: 2025-12-22
+**状态**: 方案重构完成，进入 Phase 1 开发。
