@@ -227,8 +227,8 @@ class OpenDetector(object):
         return self.onnx_det_engine.run(images)
 
     def _inference_tensorrt(self, images):
-        # TensorRT推理
-        return self.trt_det_engine.run(images)
+        # TensorRT推理 (TRTEngine 使用 __call__ 方法)
+        return self.trt_det_engine(images)
 
     def __call__(self,
                  img_path=None,

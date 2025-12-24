@@ -273,8 +273,8 @@ class OpenRecognizer:
         return self.onnx_rec_engine.run(images)
 
     def _inference_tensorrt(self, images):
-        # TensorRT推理
-        return self.trt_rec_engine.run(images)
+        # TensorRT推理 (TRTEngine 使用 __call__ 方法)
+        return self.trt_rec_engine(images)
 
     def __call__(self,
                  img_path=None,
