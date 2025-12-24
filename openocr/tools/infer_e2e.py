@@ -82,6 +82,8 @@ class OpenOCR(object):
                  backend='torch',
                  onnx_det_model_path=None,
                  onnx_rec_model_path=None,
+                 trt_det_model_path=None,
+                 trt_rec_model_path=None,
                  drop_score=0.5,
                  det_box_type='quad',
                  device='gpu'):
@@ -90,8 +92,14 @@ class OpenOCR(object):
 
         Args:
             mode (str, optional): 运行模式，可选值为'mobile'或'server'。默认为'mobile'。
+            backend (str, optional): 推理后端，可选值为'torch', 'onnx', 'tensorrt'。默认为'torch'。
+            onnx_det_model_path (str, optional): ONNX 检测模型路径。
+            onnx_rec_model_path (str, optional): ONNX 识别模型路径。
+            trt_det_model_path (str, optional): TensorRT 检测模型路径。
+            trt_rec_model_path (str, optional): TensorRT 识别模型路径。
             drop_score (float, optional): 检测框的置信度阈值，低于该阈值的检测框将被丢弃。默认为0.5。
             det_box_type (str, optional): 检测框的类型，可选值为'quad' and 'poly'。默认为'quad'。
+            device (str, optional): 运行设备，可选值为'gpu'或'cpu'。默认为'gpu'。
 
         Returns:
             无返回值。
@@ -106,11 +114,19 @@ class OpenOCR(object):
 
         cfg_rec['Global']['device'] = device
 
-        self.text_detector = OpenDetector(cfg_det,
-                                          backend=backend,
-                                          onnx_model_path=onnx_det_model_path)
-        self.text_recognizer = OpenRecognizer(
-            cfg_rec, backend=backend, onnx_model_path=onnx_rec_model_path)
+        # 根据后端选择对应的模型路径
+        if backend == 'tensorrt':
+            self.text_detector = OpenDetector(cfg_det,
+                                              backend=backend,
+                                              trt_engine_path=trt_det_model_path)
+            self.text_recognizer = OpenRecognizer(
+                cfg_rec, backend=backend, trt_engine_path=trt_rec_model_path)
+        else:
+            self.text_detector = OpenDetector(cfg_det,
+                                              backend=backend,
+                                              onnx_model_path=onnx_det_model_path)
+            self.text_recognizer = OpenRecognizer(
+                cfg_rec, backend=backend, onnx_model_path=onnx_rec_model_path)
         self.det_box_type = det_box_type
         self.drop_score = drop_score
 

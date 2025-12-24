@@ -31,6 +31,8 @@ MODEL_NAME_DET = './openocr_det_repvit_ch.pth'  # 模型文件名称
 DOWNLOAD_URL_DET = 'https://github.com/Topdu/OpenOCR/releases/download/develop0.0.1/openocr_det_repvit_ch.pth'  # 模型文件 URL
 MODEL_NAME_DET_ONNX = './openocr_det_model.onnx'  # 模型文件名称
 DOWNLOAD_URL_DET_ONNX = 'https://github.com/Topdu/OpenOCR/releases/download/develop0.0.1/openocr_det_model.onnx'  # 模型文件 URL
+MODEL_NAME_DET_TRT = './openocr_det_model.trt.engine'  # TensorRT Engine 文件
+DOWNLOAD_URL_DET_TRT = None  # TensorRT Engine 需要本地构建
 
 
 def check_and_download_model(model_name: str, url: str):
@@ -123,12 +125,14 @@ class OpenDetector(object):
                  config=None,
                  backend='torch',
                  onnx_model_path=None,
+                 trt_engine_path=None,
                  numId=0):
         """
         Args:
             config (dict, optional): 配置信息。默认为None。
-            backend (str): 'torch' 或 'onnx'
+            backend (str): 'torch', 'onnx' 或 'tensorrt'
             onnx_model_path (str): ONNX模型路径（仅当backend='onnx'时需要）
+            trt_engine_path (str): TensorRT Engine路径（仅当backend='tensorrt'时需要）
             numId (int, optional): 设备编号。默认为0。
         """
 
@@ -161,8 +165,28 @@ class OpenDetector(object):
                     raise ValueError('ONNX模式需要指定onnx_model_path参数')
             self.onnx_det_engine = ONNXEngine(
                 onnx_model_path, use_gpu=config['Global']['device'] == 'gpu')
+        elif backend == 'tensorrt':
+            from tools.infer.trt_engine import TRTEngine
+            trt_engine_path = trt_engine_path if config['Global'].get(
+                'trt_engine_path',
+                None) is None else config['Global']['trt_engine_path']
+            if trt_engine_path is None:
+                if config['Architecture']['algorithm'] == 'DB_mobile':
+                    # 尝试查找缓存目录中的 Engine 文件
+                    cache_dir = Path.home() / '.cache' / 'openocr'
+                    cached_engine = cache_dir / MODEL_NAME_DET_TRT
+                    if cached_engine.exists():
+                        trt_engine_path = str(cached_engine)
+                    else:
+                        raise ValueError(
+                            f'TensorRT模式需要指定trt_engine_path参数，'
+                            f'或先将Engine文件保存到: {cached_engine}')
+                else:
+                    raise ValueError('TensorRT模式需要指定trt_engine_path参数')
+            logger.info(f'Loading TensorRT Engine from: {trt_engine_path}')
+            self.trt_det_engine = TRTEngine(trt_engine_path)
         else:
-            raise ValueError("backend参数必须是'torch'或'onnx'")
+            raise ValueError("backend参数必须是'torch'、'onnx'或'tensorrt'")
 
     def _init_common(self, config):
         from opendet.postprocess import build_post_process
@@ -201,6 +225,10 @@ class OpenDetector(object):
     def _inference_onnx(self, images):
         # ONNX输入需要为numpy数组
         return self.onnx_det_engine.run(images)
+
+    def _inference_tensorrt(self, images):
+        # TensorRT推理
+        return self.trt_det_engine.run(images)
 
     def __call__(self,
                  img_path=None,
@@ -260,6 +288,10 @@ class OpenDetector(object):
                 kwargs['torch_tensor'] = True
             elif self.backend == 'onnx':
                 preds_det = self._inference_onnx(images)
+                preds = {'maps': preds_det[0]}
+                kwargs['torch_tensor'] = False
+            elif self.backend == 'tensorrt':
+                preds_det = self._inference_tensorrt(images)
                 preds = {'maps': preds_det[0]}
                 kwargs['torch_tensor'] = False
 

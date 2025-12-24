@@ -18,9 +18,13 @@ from openocr import OpenOCR
 # ==================== 配置 ====================
 class Config:
     """流水线配置"""
-    # 模型路径
-    YOLO_MODEL_PATH = 'best.engine'
-    YOLO_FALLBACK_PATH = 'best.pt'
+
+    # 模型目录
+    MODELS_DIR = Path(__file__).parent / 'models'
+
+    # YOLO 模型路径
+    YOLO_MODEL_PATH = str(MODELS_DIR / 'yolo/best.engine')
+    YOLO_FALLBACK_PATH = str(MODELS_DIR / 'yolo/best.pt')
 
     # YOLO 检测参数
     YOLO_IMG_SIZE = 640
@@ -32,9 +36,13 @@ class Config:
     TARGET_CLASS_ID = 1
     TARGET_CLASS_NAME = 'call_label'
 
-    # OCR 参数 - 启用 ONNX/TensorRT 加速
-    OCR_BACKEND = 'onnx'
+    # OCR 参数 - 启用 TensorRT 加速
+    # 可选: 'torch', 'onnx', 'tensorrt'
+    # 'tensorrt' 需要 .engine 文件，性能最优
+    OCR_BACKEND = 'tensorrt'
     OCR_DEVICE = 'gpu'
+    OCR_TRT_REC_PATH = str(MODELS_DIR / 'ocr/openocr_rec_model.trt.engine')
+    OCR_TRT_DET_PATH = str(MODELS_DIR / 'ocr/openocr_det_model.trt.engine')
 
     # 输出路径
     OUTPUT_DIR = Path('output')
@@ -101,12 +109,19 @@ class DetectCropOCRPipeline:
         print(f"[加载 YOLO] {yolo_path}")
         self.yolo_model = YOLO(yolo_path, task='segment')
 
-        # 加载 OCR 引擎（ONNX/TensorRT 加速）
+        # 加载 OCR 引擎（TensorRT/ONNX 加速）
         print(f"[加载 OCR] OpenOCR (backend={self.config.OCR_BACKEND}, device={self.config.OCR_DEVICE})")
-        self.ocr_engine = OpenOCR(
-            #backend=self.config.OCR_BACKEND,
-            #device=self.config.OCR_DEVICE
-        )
+
+        # 根据 backend 准备模型路径
+        ocr_kwargs = {'backend': self.config.OCR_BACKEND, 'device': self.config.OCR_DEVICE}
+
+        if self.config.OCR_BACKEND == 'tensorrt':
+            ocr_kwargs['trt_det_model_path'] = self.config.OCR_TRT_DET_PATH
+            ocr_kwargs['trt_rec_model_path'] = self.config.OCR_TRT_REC_PATH
+            print(f"  - TRT Detection: {self.config.OCR_TRT_DET_PATH}")
+            print(f"  - TRT Recognition: {self.config.OCR_TRT_REC_PATH}")
+
+        self.ocr_engine = OpenOCR(**ocr_kwargs)
 
         # 预热 OCR 模型（消除首帧延迟）
         print("[预热 OCR] 运行一次推理以初始化模型...")
