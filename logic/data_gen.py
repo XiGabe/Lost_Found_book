@@ -152,36 +152,36 @@ class LCCCallNumber:
 def apply_noise(text):
     """将干净的 LCC 字符串转化为带有 OCR 噪声的版本
 
-    噪声级别 (可以通过调整参数控制):
-    - 字符替换概率: 3% (原来 15%)
-    - 前缀添加概率: 10% (原来 20%)
-    - 杂质插入概率: 1% (原来 5%)
-    - 格式清洗概率: 20% (原来 50%)
+    噪声级别 (更接近真实场景):
+    - 字符替换概率: 1% (极低，模拟高质量OCR)
+    - 前缀添加概率: 3% (偶尔有图书馆前缀)
+    - 杂质插入概率: 0.3% (几乎无杂质)
+    - 格式清洗概率: 5% (少量格式问题)
     """
     chars = list(text)
     noisy_chars = []
 
-    # 随机添加前缀 (降低概率)
-    if random.random() < 0.1:  # 原来是 0.2
+    # 随机添加前缀 (低概率)
+    if random.random() < 0.03:  # 降低到 3%
         prefix = random.choice(PREFIXES)
-        sep = random.choice([' ', '\n', '|'])
+        sep = random.choice([' ', '|'])
         noisy_chars.extend(list(prefix + sep))
 
     for char in chars:
-        # 字符替换 (大幅降低概率)
-        if char in OCR_CONFUSION and random.random() < 0.03:  # 原来是 0.15
+        # 字符替换 (极低概率 - 模拟高质量OCR)
+        if char in OCR_CONFUSION and random.random() < 0.01:  # 降低到 1%
             noisy_chars.append(random.choice(OCR_CONFUSION[char]))
         else:
             noisy_chars.append(char)
-        # 插入杂质 (大幅降低概率)
-        if random.random() < 0.01:  # 原来是 0.05
+        # 插入杂质 (极低概率)
+        if random.random() < 0.003:  # 降低到 0.3%
             noisy_chars.append(random.choice(['.', ' ']))
 
     result = "".join(noisy_chars)
 
-    # 格式清洗 (降低概率)
-    if random.random() < 0.2:  # 原来是 0.5
-        result = result.replace(" ", random.choice(["\n", "|", "  "]))
+    # 格式清洗 (低概率)
+    if random.random() < 0.05:  # 降低到 5%
+        result = result.replace(" ", random.choice(["|", "  "]))
 
     return result
 
