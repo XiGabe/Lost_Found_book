@@ -1,10 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
 .DS_Store
-*.jpg
-*.json
-*.pt
-*.onnx
-*.engine
-*.pth
-*.profile
-*.csv
+Thumbs.db
+
+# Project specific
+output/e2e_results/visualizations/
+output/e2e_results/json/
 *.log
+
+# Data (too large for git)
+data/raw_images/
+data/synthetic_pairs/lcc_training_data.csv
+
+# Models (too large for git, keep weights/ structure but ignore large files)
+weights/yolo/*.engine
+weights/yolo/*.onnx
+weights/ocr/*.engine
+weights/ocr/*.onnx
+weights/ocr/*.pth
+
+# Keep trained models (commented out - add to git if needed)
+weights/comparator.pth
+weights/yolo/best.pt
