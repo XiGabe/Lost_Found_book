@@ -147,7 +147,7 @@ def evaluate_model(
 
     # 构建指标字典
     metrics_per_class = {}
-    class_names = ['In_Order', 'Out_of_Order', 'Duplicate']
+    class_names = ['In_Order', 'Duplicate', 'Out_of_Order']
 
     for i in range(num_classes):
         metrics_per_class[f'{class_names[i]}_precision'] = float(precision[i])
@@ -175,7 +175,7 @@ def plot_confusion_matrix(cm: np.ndarray, save_path: str, class_names: List[str]
         class_names: 类别名称
     """
     if class_names is None:
-        class_names = ['In_Order', 'Out_of_Order', 'Duplicate']
+        class_names = ['In_Order', 'Duplicate', 'Out_of_Order']
 
     plt.figure(figsize=(8, 6))
     sns.heatmap(

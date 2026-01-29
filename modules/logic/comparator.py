@@ -21,8 +21,8 @@ class SiameseBiLSTM(nn.Module):
     输入：两个文本序列 (text_a, text_b)
     输出：3分类 logits [0, 1, 2]
         - 0: In_Order (A < B)
-        - 1: Out_of_Order (A > B)
-        - 2: Duplicate (A ≈ B)
+        - 1: Duplicate (A = B)
+        - 2: Out_of_Order (A > B)
     """
 
     def __init__(

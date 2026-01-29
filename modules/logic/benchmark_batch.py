@@ -18,10 +18,8 @@ import torch
 import numpy as np
 from tqdm import tqdm
 
-# 添加项目路径
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from .tokenizer import CharTokenizer
-from .siamese_lstm import SiameseBiLSTM
+from modules.logic.tokenizer import CharTokenizer
+from modules.logic.comparator import SiameseBiLSTM
 
 
 class BatchComparator:
@@ -31,7 +29,7 @@ class BatchComparator:
         self.model = model
         self.tokenizer = tokenizer
         self.device = device
-        self.label_names = ['In_Order', 'Out_of_Order', 'Duplicate']
+        self.label_names = ['In_Order', 'Duplicate', 'Out_of_Order']
 
     def compare_pair(self, text_a: str, text_b: str) -> Tuple[int, float]:
         """
@@ -85,22 +83,22 @@ class BatchComparator:
             for j in range(i + 1, num_books):
                 label, conf = self.compare_pair(books[i], books[j])
 
-                if label == 1:  # Out_of_Order
-                    out_of_order_count += 1
-                    problem_pairs.append({
-                        'pos': (i, j),
-                        'book_a': books[i],
-                        'book_b': books[j],
-                        'reason': 'Out_of_Order',
-                        'confidence': conf
-                    })
-                elif label == 2:  # Duplicate
+                if label == 1:  # Duplicate
                     duplicate_count += 1
                     problem_pairs.append({
                         'pos': (i, j),
                         'book_a': books[i],
                         'book_b': books[j],
                         'reason': 'Duplicate',
+                        'confidence': conf
+                    })
+                elif label == 2:  # Out_of_Order
+                    out_of_order_count += 1
+                    problem_pairs.append({
+                        'pos': (i, j),
+                        'book_a': books[i],
+                        'book_b': books[j],
+                        'reason': 'Out_of_Order',
                         'confidence': conf
                     })
 
@@ -231,7 +229,7 @@ def evaluate_on_test_set(model, tokenizer, device, test_csv: str, max_samples: i
     print(f"吞吐量: {len(test_samples) / total_time:.1f} pairs/sec")
 
     print(f"\n各类别准确率:")
-    label_names = ['In_Order', 'Out_of_Order', 'Duplicate']
+    label_names = ['In_Order', 'Duplicate', 'Out_of_Order']
     for i, name in enumerate(label_names):
         if label_counts[i] > 0:
             acc = correct_counts[i] / label_counts[i]

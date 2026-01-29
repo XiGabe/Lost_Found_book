@@ -34,7 +34,5 @@ weights/yolo/*.onnx
 weights/ocr/*.engine
 weights/ocr/*.onnx
 weights/ocr/*.pth
-
-# Keep trained models (commented out - add to git if needed)
 weights/comparator.pth
 weights/yolo/best.pt

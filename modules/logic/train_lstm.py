@@ -15,10 +15,10 @@ import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
 
-from .tokenizer import CharTokenizer
-from .dataset import LCCPairDataset, collate_fn, split_train_val
-from .siamese_lstm import SiameseBiLSTM, count_parameters
-from .utils import (
+from modules.logic.tokenizer import CharTokenizer
+from modules.logic.dataset import LCCPairDataset, collate_fn, split_train_val
+from modules.logic.comparator import SiameseBiLSTM, count_parameters
+from modules.logic.utils import (
     setup_logging,
     save_checkpoint,
     save_metrics,
@@ -324,7 +324,7 @@ def main():
     save_metrics(metrics, os.path.join(output_dir, 'metrics.json'))
 
     # 绘制混淆矩阵
-    from .utils import plot_confusion_matrix
+    from logic.utils import plot_confusion_matrix
     plot_confusion_matrix(cm, os.path.join(output_dir, 'confusion_matrix.png'))
 
     logger.info(f'所有结果已保存到: {output_dir}')

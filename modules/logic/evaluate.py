@@ -12,10 +12,10 @@ import json
 import torch
 from torch.utils.data import DataLoader
 
-from .tokenizer import CharTokenizer
-from .dataset import LCCPairDataset, collate_fn
-from .siamese_lstm import SiameseBiLSTM
-from .utils import (
+from modules.logic.tokenizer import CharTokenizer
+from modules.logic.dataset import LCCPairDataset, collate_fn
+from modules.logic.comparator import SiameseBiLSTM
+from modules.logic.utils import (
     save_metrics,
     evaluate_model,
     plot_confusion_matrix,
@@ -110,7 +110,7 @@ def main():
     print()
 
     # 打印每个类别的指标
-    class_names = ['In_Order', 'Out_of_Order', 'Duplicate']
+    class_names = ['In_Order', 'Duplicate', 'Out_of_Order']
     print(f'{"类别":<15} {"Precision":<12} {"Recall":<12} {"F1":<12} {"Support":<10}')
     print('-' * 60)
 

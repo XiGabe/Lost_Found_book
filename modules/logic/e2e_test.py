@@ -19,7 +19,7 @@ import cv2
 import numpy as np
 import torch
 
-# 添加父目录到路径以导入现有模块
+# 添加父目录到路径以导入现有模块（兼容性）
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from modules.vision import YOLODetector, OCRWrapper, DetectionResult, VisionConfig
@@ -35,7 +35,7 @@ class PairComparisonResult:
     text_b: str
     idx_a: int
     idx_b: int
-    label: int  # 0: In_Order, 1: Out_of_Order, 2: Duplicate
+    label: int  # 0: In_Order, 1: Duplicate, 2: Out_of_Order
     label_name: str
     confidence: float
     probabilities: Dict[str, float]
@@ -185,10 +185,10 @@ class ResultVisualizer:
         for pair in pair_results:
             if pair.label == 0:  # In_Order
                 color = self.COLOR_IN_ORDER
-            elif pair.label == 1:  # Out_of_Order
-                color = self.COLOR_OUT_OF_ORDER
-            else:  # Duplicate
+            elif pair.label == 1:  # Duplicate
                 color = self.COLOR_DUPLICATE
+            else:  # Out_of_Order
+                color = self.COLOR_OUT_OF_ORDER
 
             idx_to_label[pair.idx_a] = (pair.label_name, color)
             idx_to_label[pair.idx_b] = (pair.label_name, color)
@@ -251,8 +251,8 @@ class ResultVisualizer:
 
         # 统计
         num_in_order = sum(1 for p in pair_results if p.label == 0)
-        num_out_of_order = sum(1 for p in pair_results if p.label == 1)
-        num_duplicates = sum(1 for p in pair_results if p.label == 2)
+        num_duplicates = sum(1 for p in pair_results if p.label == 1)
+        num_out_of_order = sum(1 for p in pair_results if p.label == 2)
 
         # 图例背景
         legend_x = 10
@@ -548,8 +548,8 @@ class E2EPipeline:
 
         # 统计
         num_in_order = sum(1 for p in pair_results if p.label == 0)
-        num_out_of_order = sum(1 for p in pair_results if p.label == 1)
-        num_duplicates = sum(1 for p in pair_results if p.label == 2)
+        num_duplicates = sum(1 for p in pair_results if p.label == 1)
+        num_out_of_order = sum(1 for p in pair_results if p.label == 2)
 
         # 创建结果对象
         processing_time = time.time() - start_time

@@ -8,18 +8,33 @@
 
 import argparse
 import sys
+import re
 from pathlib import Path
 
 import torch
 
-from .tokenizer import CharTokenizer
-from .comparator import SiameseBiLSTM
+from modules.logic.tokenizer import CharTokenizer
+from modules.logic.comparator import SiameseBiLSTM
 
 
 # 全局模型和tokenizer（避免重复加载）
 _model = None
 _tokenizer = None
 _device = None
+
+
+def preprocess_lcc(text: str) -> str:
+    """
+    预处理函数（当前版本：不做处理）
+
+    经过测试，简单的补零策略（.A3 -> .A300）会：
+    1. 让数字更相似，反而增加误判
+    2. 破坏模型的 OCR 抗噪能力
+
+    结论：这个问题无法通过简单预处理解决
+    解决方案：使用困难样本微调模型
+    """
+    return text
 
 
 def load_model(checkpoint_path: str, device: torch.device = None):
@@ -92,7 +107,7 @@ def compare_lcc(
     Returns:
         {
             'label': int,  # 0, 1, 或 2
-            'label_name': str,  # 'In_Order', 'Out_of_Order', 或 'Duplicate'
+            'label_name': str,  # 'In_Order', 'Duplicate', 或 'Out_of_Order'
             'confidence': float,  # 置信度 (0-1)
             'probabilities': dict  # 每个类别的概率
         }
@@ -103,9 +118,13 @@ def compare_lcc(
             raise ValueError('必须提供 checkpoint_path 或 model')
         model, tokenizer, device = load_model(checkpoint_path, device)
 
-    # 编码输入
-    ids_a = tokenizer.encode(text_a, add_padding=True)
-    ids_b = tokenizer.encode(text_b, add_padding=True)
+    # [工程补丁] 预处理：标准化数字格式
+    text_a_clean = preprocess_lcc(text_a)
+    text_b_clean = preprocess_lcc(text_b)
+
+    # 编码输入（使用预处理后的文本）
+    ids_a = tokenizer.encode(text_a_clean, add_padding=True)
+    ids_b = tokenizer.encode(text_b_clean, add_padding=True)
 
     # 转为 tensor
     input_ids_a = torch.tensor([ids_a], dtype=torch.long).to(device)
@@ -119,7 +138,7 @@ def compare_lcc(
     pred_label = preds.item()
     probs_np = probs.cpu().numpy()[0]
 
-    label_names = ['In_Order', 'Out_of_Order', 'Duplicate']
+    label_names = ['In_Order', 'Duplicate', 'Out_of_Order']
 
     return {
         'label': int(pred_label),
@@ -127,8 +146,8 @@ def compare_lcc(
         'confidence': float(probs_np[pred_label]),
         'probabilities': {
             'In_Order': float(probs_np[0]),
-            'Out_of_Order': float(probs_np[1]),
-            'Duplicate': float(probs_np[2])
+            'Duplicate': float(probs_np[1]),
+            'Out_of_Order': float(probs_np[2])
         }
     }
 
@@ -162,8 +181,12 @@ def batch_compare_lcc(
         batch_ids_b = []
 
         for text_a, text_b in batch_pairs:
-            ids_a = tokenizer.encode(text_a, add_padding=True)
-            ids_b = tokenizer.encode(text_b, add_padding=True)
+            # [工程补丁] 预处理每个样本
+            text_a_clean = preprocess_lcc(text_a)
+            text_b_clean = preprocess_lcc(text_b)
+
+            ids_a = tokenizer.encode(text_a_clean, add_padding=True)
+            ids_b = tokenizer.encode(text_b_clean, add_padding=True)
             batch_ids_a.append(ids_a)
             batch_ids_b.append(ids_b)
 
@@ -184,12 +207,12 @@ def batch_compare_lcc(
                 'text_a': batch_pairs[j][0],
                 'text_b': batch_pairs[j][1],
                 'label': int(pred_label),
-                'label_name': ['In_Order', 'Out_of_Order', 'Duplicate'][pred_label],
+                'label_name': ['In_Order', 'Duplicate', 'Out_of_Order'][pred_label],
                 'confidence': float(probs_np[pred_label]),
                 'probabilities': {
                     'In_Order': float(probs_np[0]),
-                    'Out_of_Order': float(probs_np[1]),
-                    'Duplicate': float(probs_np[2])
+                    'Duplicate': float(probs_np[1]),
+                    'Out_of_Order': float(probs_np[2])
                 }
             })
 
@@ -233,11 +256,11 @@ def main():
         # 解释结果
         print('\\n解释:')
         if result['label'] == 0:
-            print('  → 顺序正确 (A < B)')
+            print('  ✓ 顺序正确 (A < B) - 无需调整')
         elif result['label'] == 1:
-            print('  ⚠ 顺序错误 (A > B) - 需要调整位置！')
+            print('  ⚠ 重复/相同 (A ≈ B) - 可能需要去重')
         else:
-            print('  → 相同/重复 (A ≈ B)')
+            print('  ✗ 顺序错误 (A > B) - 需要交换位置！')
 
     # 批量推理
     elif args.batch_file:
