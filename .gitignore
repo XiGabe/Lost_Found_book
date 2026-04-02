@@ -27,6 +27,7 @@ output/e2e_results/json/
 # Data (too large for git)
 data/raw_images/
 data/synthetic_pairs/lcc_training_data.csv
+data/ocr_results_ascii.txt
 
 # Models (too large for git, keep weights/ structure but ignore large files)
 weights/yolo/*.engine

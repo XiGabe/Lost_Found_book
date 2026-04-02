@@ -39,7 +39,7 @@ def parse_args():
                         help='训练数据 CSV 路径')
     parser.add_argument('--val-ratio', type=float, default=0.1,
                         help='验证集比例')
-    parser.add_argument('--max-seq-len', type=int, default=64,
+    parser.add_argument('--max-seq-len', type=int, default=96,
                         help='最大序列长度')
 
     # 模型参数
