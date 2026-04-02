@@ -61,8 +61,8 @@ class SiameseBiLSTM(nn.Module):
 
         # 4. 分类器
         # 每个序列经过编码后：[Mean_Pool; Max_Pool] -> 维度是 hidden_dim * 2
-        # Siamese Head 拼接: [vec_a; vec_b; |vec_a - vec_b|] -> 总维度 * 3
-        classifier_input_dim = (hidden_dim * 2) * 3
+        # Siamese Head 拼接: [vec_a; vec_b; vec_a - vec_b; vec_a * vec_b] -> 总维度 * 4
+        classifier_input_dim = (hidden_dim * 2) * 4
         
         self.classifier = nn.Sequential(
             nn.Linear(classifier_input_dim, hidden_dim * 2),
@@ -133,9 +133,12 @@ class SiameseBiLSTM(nn.Module):
         vec_a = self.dropout(vec_a)
         vec_b = self.dropout(vec_b)
 
-        # 拼接特征: [vec_a; vec_b; |vec_a - vec_b|]
-        diff = torch.abs(vec_a - vec_b)
-        combined = torch.cat([vec_a, vec_b, diff], dim=1) 
+        # 拼接特征: [vec_a; vec_b; vec_a - vec_b; vec_a * vec_b]
+        # 注意：必须保留方向信息 (vec_a - vec_b 而非 |vec_a - vec_b|)
+        # vec_a * vec_b 提供乘法交互特征，捕捉非线性关系
+        diff = vec_a - vec_b
+        hadamard = vec_a * vec_b
+        combined = torch.cat([vec_a, vec_b, diff, hadamard], dim=1) 
 
         # 分类
         logits = self.classifier(combined)

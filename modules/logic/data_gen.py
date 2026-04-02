@@ -111,11 +111,12 @@ def generate_v33_hard_pair():
     """生成高度相似但语义不同的 A < B"""
     A = LCCCallNumber()
     B = copy.deepcopy(A)
-    
+
     attack_type = random.choices(
         ['cutter_letter', 'cutter_digit_len', 'cutter_digit_val', 'year_near',
-         'decimal_diff', 'cutter2_diff', 'volume_diff', 'main_class_anchor'],
-        weights=[0.15, 0.15, 0.1, 0.1, 0.1, 0.1, 0.05, 0.25] # 提升主类锚点权重，矫正模型视线
+         'decimal_diff', 'cutter2_diff', 'volume_diff', 'main_class_anchor',
+         'minimal_diff'],  # 新增：极小差异硬负样本
+        weights=[0.12, 0.12, 0.08, 0.08, 0.08, 0.08, 0.04, 0.20, 0.20]  # minimal_diff 占 20%
     )[0]
 
     if attack_type == 'main_class_anchor':
@@ -134,10 +135,13 @@ def generate_v33_hard_pair():
         A.cutter1_num = base
         B.cutter1_num = base + str(random.randint(1, 9))
     elif attack_type == 'cutter_digit_val':
-        short = str(random.randint(10, 99))
-        long = str(random.randint(1, 9))
-        A.cutter1_num = short
-        B.cutter1_num = long
+        # 【核心修复】构造严格的 A < B 小数陷阱 (例如 645 < 65)
+        # 即使 A 看起来数字更长，但在分歧位 (第二位) A(4) < B(5)，所以 A < B
+        first = str(random.randint(1, 9))
+        val_second = random.randint(0, 8) 
+        A.cutter1_num = first + str(val_second) + str(random.randint(1, 9)) # e.g. "645"
+        B.cutter1_num = first + str(val_second + 1)                         # e.g. "65"
+        # 验证逻辑：0.645 < 0.65，符合 A < B 的契约
     elif attack_type == 'year_near':
         base_year = random.randint(1950, 2020)
         A.has_year = B.has_year = True
@@ -162,6 +166,35 @@ def generate_v33_hard_pair():
         base_vol = random.randint(1, 50)
         A.suffix_num = base_vol
         B.suffix_num = base_vol + 1
+    elif attack_type == 'minimal_diff':
+        # 【真正普适版】随机化差异位和具体数值，但严格保证 A < B
+        minimal_type = random.choice(['cutter_last_digit', 'decimal_last_digit', 'year_suffix'])
+
+        if minimal_type == 'cutter_last_digit':
+            # 1. 随机生成前缀 (长度也可变)
+            base = str(random.randint(1, 99)) 
+            # 2. 从 0-9 中随机选两个不相等的数字并排序
+            d1, d2 = sorted(random.sample(range(10), 2))
+            A.cutter1_num = base + str(d1) # e.g. "643"
+            B.cutter1_num = base + str(d2) # e.g. "648"
+            
+        elif minimal_type == 'decimal_last_digit':
+            base = str(random.randint(1, 99))
+            A.has_cls_decimal = B.has_cls_decimal = True
+            # 同样利用排序保证方向
+            d1, d2 = sorted(random.sample(range(10), 2))
+            A.cls_decimal = base + str(d1)
+            B.cls_decimal = base + str(d2)
+
+        elif minimal_type == 'year_suffix':
+            A.has_year = B.has_year = True
+            base_year = random.randint(1900, 2025)
+            A.year = B.year = base_year
+            # 从可能的后缀字母表中随机选两个并排序
+            s_pool = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'z']
+            s1, s2 = sorted(random.sample(s_pool, 2))
+            A.year_suffix = s1 # e.g. "c"
+            B.year_suffix = s2 # e.g. "f"
 
     return A, B
 

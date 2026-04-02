@@ -1,5 +1,5 @@
 """
-Lost Book Robot - 索书号排序推理脚本 (V2.0 竣工版)
+Lost Book Robot - 索书号排序推理脚本 (V3.0 适配版)
 功能：对两个 OCR 识别出的索书号字符串进行严格的 LCC 语义排序判断
 """
 
@@ -8,7 +8,6 @@ import sys
 import re
 from pathlib import Path
 import torch
-import torch.nn.functional as F
 
 from modules.logic.tokenizer import CharTokenizer
 from modules.logic.comparator import SiameseBiLSTM
@@ -16,45 +15,34 @@ from modules.logic.comparator import SiameseBiLSTM
 # ==========================================
 # 全局常量与配置
 # ==========================================
-MAX_SEQ_LEN = 96  # 必须与 V3 训练时的参数严格一致
+MAX_SEQ_LEN = 64  
 _model = None
 _tokenizer = None
 _device = None
 
 def preprocess_lcc(text: str) -> str:
     """
-    [V3.3 终极修复版] 基于正则，安全对齐训练集结构
+    [极简清洗版] 为了保持与训练集（脏数据）的数据分布一致，
+    移除了强行换行的逻辑，只修复 OCR 特有的断裂问题。
     """
     if not text: return ""
 
-    # 0. 基础清洗：把多个连续的空格、换行符全部压平成一个单空格，方便后续正则统一处理
+    # 0. 基础清洗：把多个连续的空白字符压平成一个单空格
     text = re.sub(r'\s+', ' ', text).strip()
 
-    # 1. 确保主类字母和数字间有空格 (例如 "PR6003" -> "PR 6003")
+    # 1. 修复 OCR 盲区 A：字母内部断裂 (例如 "B R 330" -> "BR 330", "P Q 2283" -> "PQ 2283")
+    # 连续执行两次以应对可能的三个字母断裂情况
+    text = re.sub(r'\b([A-Za-z])\s+([A-Za-z])\b', r'\1\2', text)
+    text = re.sub(r'\b([A-Za-z])\s+([A-Za-z])\b', r'\1\2', text)
+
+    # 2. 确保主类字母和数字间有空格 (例如 "PR6003" -> "PR 6003")
     text = re.sub(r'^([A-Za-z]+)(\d)', r'\1 \2', text)
-
-    # 2. Cutter 前换行 
-    # 特征：空白字符 + 点号 + 字母 (完美避开 76.5 这种小数)
-    text = re.sub(r'\s+\.([A-Za-z])', r'\n.\1', text)
-
-    # 3. 年份前换行 
-    # 特征：空白字符 + 18/19/20开头的4位数字
-    text = re.sub(r'\s+(18\d{2}|19\d{2}|20\d{2})\b', r'\n\1', text)
-
-    # 4. 卷册/复本后缀前换行
-    # 特征：空白字符 + 常用后缀词
-    suffix_pattern = r'\s+(v\.|c\.|no\.|pt\.|vol\.|bd\.|t\.|heft|suppl\.)'
-    text = re.sub(suffix_pattern, r'\n\1', text, flags=re.IGNORECASE)
-
-    # 5. 独立的超大本标识换行
-    text = re.sub(r'\s+(\+{1,2})$', r'\n\1', text)
 
     return text
 
 def pad_sequence_ids(ids: list, max_len: int = MAX_SEQ_LEN) -> list:
     """
-    [关键修复] 序列长度对齐。
-    确保输入 Tensor 的维度永远是 [batch, 96]。
+    序列长度对齐。确保输入 Tensor 的维度永远是 [batch, 64]。
     """
     if len(ids) < max_len:
         return ids + [0] * (max_len - len(ids))
@@ -76,7 +64,7 @@ def load_model(checkpoint_path: str, device: torch.device = None):
             max_seq_len=MAX_SEQ_LEN
         )
 
-        # 初始化模型架构 (确保与 comparator.py 的 Masked Mean Pooling 版本一致)
+        # 初始化模型架构 (确保与 train_lstm.py 的默认参数一致)
         _model = SiameseBiLSTM(
             vocab_size=_tokenizer.get_vocab_size(),
             embedding_dim=128,
@@ -98,11 +86,11 @@ def load_model(checkpoint_path: str, device: torch.device = None):
 def compare_lcc(text_a: str, text_b: str, checkpoint_path: str = None) -> dict:
     model, tokenizer, device = load_model(checkpoint_path)
 
-    # 1. 语义特征增强预处理
+    # 1. 极简预处理 (解决字母断裂，保留模型习惯的乱序格式)
     text_a_proc = preprocess_lcc(text_a)
     text_b_proc = preprocess_lcc(text_b)
 
-    # 2. 编码并强制对齐 96 长度
+    # 2. 编码并强制对齐 64 长度
     ids_a = pad_sequence_ids(tokenizer.encode(text_a_proc, add_padding=False))
     ids_b = pad_sequence_ids(tokenizer.encode(text_b_proc, add_padding=False))
 

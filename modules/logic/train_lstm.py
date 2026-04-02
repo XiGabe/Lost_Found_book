@@ -246,7 +246,7 @@ def main():
 
     # 损失函数和优化器
     # 平衡权重：Duplicate 需要足够权重来保证召回率
-    class_weights = torch.tensor([1.0, 0.7, 1.0]).to(device)
+    class_weights = torch.tensor([1.0, 0.5, 1.0]).to(device)
     criterion = nn.CrossEntropyLoss(weight=class_weights)
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
