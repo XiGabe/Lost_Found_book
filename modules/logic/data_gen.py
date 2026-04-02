@@ -1,257 +1,279 @@
 import random
 import string
 import csv
+import copy
 import os
 
 # ==========================================
 # 配置与常量
 # ==========================================
 OUTPUT_FILE = "data/synthetic_pairs/lcc_training_data.csv"
-NUM_SAMPLES = 300000 
+NUM_SAMPLES = 300000
 
-# 1. 真实场景前缀与变异字典 (模拟 OCR 对馆藏地的误读)
 PREFIXES = ["OLIN", "URIS", "KROCH", "MANN", "LAW", "MATH", "FINE ARTS"]
 PREFIX_MUTATIONS = {
-    "OLIN": ["QLIN", "DLIN", "0LIN", "OLI", "OLIN "],
+    "OLIN": ["QLIN", "DLIN", "0LIN", "OLI"],
     "URIS": ["UR1S", "UR IS", "JRIS"],
-    "BV": ["3V", "B V", "8V"],
-    "PR": ["P R", "PIR", "P2"],
-    "PQ": ["P Q", "Pa", "PO"]
+    "BV": ["3V", "B V"],
+    "PR": ["P R", "PIR"],
+    "PQ": ["P Q", "PO"]
 }
 
-# 2. 复杂的多语言与特殊版式后缀
-SUFFIX_TYPES = [
-    'v.', 'no.', 'c.', 'copy', 'vol.', 
-    'Bd.', 'T.', 'Heft', 'suppl.', 'pt.', 
-    '+', '++' # 超大尺寸书本标识
-]
+SUFFIX_TYPES = ['v.', 'no.', 'c.', 'copy', 'vol.', 'Bd.', 'T.', 'Heft', 'suppl.', 'pt.', '+', '++']
 
-# 3. 真实的“垃圾文本”噪音库 (从 OCR 结果提取)
-GARBAGE_TEXTS = [
-    "LeoS. Olschki", "JOHN DONALD", "EKAOEEIT ANOE 42819196 473616424",
-    "SH", "ISGH", "CSIC", "PEETERS", "ISBN 0-8298-0944-9", "CONHEL UNIVERSN GRY"
-]
+GARBAGE_TEXTS = ["LeoS. Olschki", "JOHN DONALD", "EKAOEEIT ANOE", "CSIC", "PEETERS", "ISBN 0-8298-0944-9"]
 
-# 4. 基础字符混淆集 (降低触发概率，因为不是主要错误源)
+# 依然保留混淆字典，但大幅降低全局触发率
 OCR_CONFUSION = {
-    '0': ['O', 'D', 'Q', 'C'], '1': ['I', 'l', '|', ']', '['],
-    '2': ['Z', '7', '?'], '3': ['E', 'B', '8'], '4': ['A', 'H'],
-    '5': ['S', '6'], '6': ['G', 'b', '5'], '8': ['B', '3', 'S'],
-    '9': ['g', 'q'], 'B': ['8', 'E', '3'], 'D': ['0', 'O', 'Q'],
-    'Z': ['2', '7'], '.': [',', ' ', "-", "'"]
+    '0': ['O', 'D'], '1': ['I', 'l', '|'], '2': ['Z', '7'], '3': ['E', 'B', '8'], 
+    '4': ['A', 'H'], '5': ['S', '6'], '6': ['G', 'b'], '8': ['B', '3'], 
+    '9': ['g', 'q'], 'B': ['8', 'E'], 'D': ['0', 'O'], 'Z': ['2'], '.': [',', '-', " "]
 }
 
-# ==========================================
-# 核心类：LCC 号码生成器
-# ==========================================
 class LCCCallNumber:
     def __init__(self):
         self.cls_letters = self._gen_letters()
         self.cls_number = random.randint(1, 9999)
-        self.has_cls_decimal = random.random() > 0.6
-        self.cls_decimal = random.randint(1, 999) if self.has_cls_decimal else None
+        self.has_cls_decimal = random.random() > 0.4
+        self.cls_decimal = str(random.randint(1, 999)) if self.has_cls_decimal else ""
         
         self.cutter1_let = random.choice(string.ascii_uppercase)
-        self.cutter1_num = self._gen_cutter_num()
-        self.cutter1_suffix = random.choice(['x', 'z']) if random.random() < 0.1 else ''
+        self.cutter1_num = str(random.randint(2, 999))
+        # 【新增】盲区1：15% 概率附加工作号 (Work Mark)
+        self.cutter1_workmark = random.choice(['x', 'X', 'z', 'Z', 'W', 'c', 'd']) if random.random() < 0.15 else ""
         
-        self.has_cutter2 = random.random() > 0.3
-        self.cutter2_let = random.choice(string.ascii_uppercase)
-        self.cutter2_num = self._gen_cutter_num()
-        self.cutter2_suffix = random.choice(['x', 'z']) if random.random() < 0.1 else ''
+        self.has_cutter2 = random.random() > 0.4
+        self.cutter2_let = random.choice(string.ascii_uppercase) if self.has_cutter2 else ""
+        self.cutter2_num = str(random.randint(2, 999)) if self.has_cutter2 else ""
+        # 【新增】盲区1：第二 Cutter 也可能有工作号
+        self.cutter2_workmark = random.choice(['x', 'X', 'z', 'Z', 'W', 'c', 'd']) if self.has_cutter2 and random.random() < 0.1 else ""
         
-        self.has_year = random.random() > 0.4
-        self.year = random.randint(1850, 2024)
-        self.year_suffix = random.choice(['a', 'b', 'c', 'x', 'z']) if random.random() < 0.1 else ''
+        self.has_year = random.random() > 0.5
+        self.year = random.randint(1880, 2025) if self.has_year else 0
+        # 【新增】盲区2：10% 概率附加版本号 (Year Suffix)
+        self.year_suffix = random.choice(['a', 'b', 'c', 'z']) if self.has_year and random.random() < 0.1 else ""
         
-        self.has_suffix = random.random() > 0.6 # 提高后缀出现率
-        self.suffix_type = random.choice(SUFFIX_TYPES)
-        self.suffix_num = random.randint(1, 100)
+        self.has_suffix = random.random() > 0.8
+        # 【新增】盲区4：引入大小写变异
+        suffix_pool = ['v.', 'V.', 'no.', 'No.', 'c.', 'C.', 'copy', 'vol.', 'Bd.', 'T.', 't.', 'Heft', 'suppl.', 'pt.', 'Pt.']
+        self.suffix_type = random.choice(suffix_pool) if self.has_suffix else ""
+        self.suffix_num = random.randint(1, 50) if self.has_suffix else 0
+        
+        # 【新增】盲区4：10% 概率生成复合后缀 (例如 v.2 pt.1)
+        self.has_sub_suffix = self.has_suffix and random.random() < 0.1
+        self.sub_suffix_type = random.choice(['pt.', 'Pt.', 'no.']) if self.has_sub_suffix else ""
+        self.sub_suffix_num = random.randint(1, 10) if self.has_sub_suffix else 0
+
+        # 【新增】盲区3：超大本标识的游离位置
+        self.oversize_mark = ""
+        if random.random() < 0.05:
+            self.oversize_mark = random.choice(['+', '++'])
 
     def _gen_letters(self):
         length = random.choices([1, 2, 3], weights=[0.2, 0.7, 0.1])[0]
         return ''.join(random.choices(string.ascii_uppercase, k=length))
 
-    def _gen_cutter_num(self):
-        return str(random.randint(2, 9999))
-
     def to_string(self):
         parts = []
-        
-        # Class
-        cls_str = f"{self.cls_letters} {self.cls_number}" # 默认带个空格
-        if self.has_cls_decimal:
-            cls_str += f".{self.cls_decimal}"
+        cls_str = f"{self.cls_letters} {self.cls_number}"
+        if self.has_cls_decimal: cls_str += f".{self.cls_decimal}"
         parts.append(cls_str)
         
-        # Cutters & Year
-        parts.append(f".{self.cutter1_let}{self.cutter1_num}{self.cutter1_suffix}")
-        if self.has_cutter2:
-            parts.append(f"{self.cutter2_let}{self.cutter2_num}{self.cutter2_suffix}")
-        if self.has_year:
+        # 拼接带工作号的 Cutter
+        parts.append(f".{self.cutter1_let}{self.cutter1_num}{self.cutter1_workmark}")
+        if self.has_cutter2: 
+            parts.append(f"{self.cutter2_let}{self.cutter2_num}{self.cutter2_workmark}")
+        
+        # 【新增】盲区3：模拟 '+' 出现在 Cutter 之后，年份之前
+        if self.oversize_mark and random.random() < 0.3:
+            parts[-1] += self.oversize_mark
+            self.oversize_mark = "" # 已经使用，清空
+            
+        if self.has_year: 
             parts.append(f"{self.year}{self.year_suffix}")
             
-        # 复杂后缀处理 (e.g., Bd.33, V. 4, ++)
         if self.has_suffix:
-            if self.suffix_type in ['+', '++']:
-                parts.append(self.suffix_type)
-            else:
-                sep = " " if random.random() > 0.5 else ""
-                parts.append(f"{self.suffix_type}{sep}{self.suffix_num}")
-
-        return " \n ".join(parts) # 默认用 \n 或空格连接，后续交由 noise 函数打乱
-
-    def clone_and_increment(self):
-        """生成一个在排序上严格大于当前对象的 LCC 号码"""
-        new_lcc = LCCCallNumber()
-        # 深度复制 (省略部分重复代码，沿用你之前的克隆逻辑)
-        new_lcc.__dict__ = self.__dict__.copy()
-
-        level = random.choices(
-            ['cls_let', 'cls_num', 'cut1', 'cut2', 'year', 'year_suffix', 'suffix', 'add_structure'],
-            weights=[0.05, 0.1, 0.25, 0.2, 0.15, 0.1, 0.1, 0.05]
-        )[0]
-
-        if level == 'cls_let':
-            if not self.cls_letters.endswith('Z'):
-                new_lcc.cls_letters = self.cls_letters[:-1] + chr(ord(self.cls_letters[-1]) + 1)
-            else:
-                new_lcc.cls_number += 1
-        elif level == 'cls_num':
-            new_lcc.cls_number += random.randint(1, 5)
-        elif level == 'cut1':
-            if not self.cutter1_num.endswith('9'):
-                new_lcc.cutter1_num = str(int(self.cutter1_num) + 1)
-            else:
-                new_lcc.cutter1_num += str(random.randint(1, 9))
-        elif level == 'cut2':
-            if not self.has_cutter2:
-                new_lcc.has_cutter2 = True
-            else:
-                if not self.cutter2_num.endswith('9'):
-                    new_lcc.cutter2_num = str(int(self.cutter2_num) + 1)
-                else:
-                    new_lcc.cutter2_num += str(random.randint(1, 9))
-        elif level == 'year':
-            if not self.has_year:
-                new_lcc.has_year = True
-            else:
-                new_lcc.year += random.randint(1, 3)
-        elif level == 'year_suffix':
-            if not self.has_year:
-                new_lcc.has_year = True
-            if self.year_suffix == '': new_lcc.year_suffix = 'a'
-            elif self.year_suffix == 'z':
-                new_lcc.year += 1
-                new_lcc.year_suffix = ''
-            else:
-                new_lcc.year_suffix = chr(ord(self.year_suffix) + 1)
-        elif level == 'suffix':
-            if not self.has_suffix:
-                new_lcc.has_suffix = True
-            else:
-                new_lcc.suffix_num += 1
-        elif level == 'add_structure':
-             if not self.has_cutter2: new_lcc.has_cutter2 = True
-             elif not self.has_year: new_lcc.has_year = True
-             elif not self.has_suffix: new_lcc.has_suffix = True
-             else: new_lcc.year += 1
-        return new_lcc
-
-# ==========================================
-# 核心噪音引擎
-# ==========================================
-def apply_real_world_ocr_noise(text):
-    """注入真实的 OCR 结构性噪音"""
-    
-    # 1. 结构性粘连与断裂 (Space Jittering)
-    parts = text.split()
-    noisy_parts = []
-    for part in parts:
-        # 变异知名大类 (如 BV -> 3V, PR -> P R)
-        for key, mutations in PREFIX_MUTATIONS.items():
-            if key in part and random.random() < 0.2:
-                part = part.replace(key, random.choice(mutations))
-        
-        # 随机拆分 (例如 330 -> 3 30)
-        if random.random() < 0.05 and len(part) > 2:
-            split_idx = random.randint(1, len(part)-1)
-            part = part[:split_idx] + " " + part[split_idx:]
+            suffix_str = f"{self.suffix_type}{self.suffix_num}"
+            if self.has_sub_suffix:
+                suffix_str += f" {self.sub_suffix_type}{self.sub_suffix_num}"
+            parts.append(suffix_str)
             
-        noisy_parts.append(part)
+        # 【新增】盲区3：模拟 '+' 出现在结尾
+        if self.oversize_mark:
+            parts.append(self.oversize_mark)
+            
+        return "\n".join(parts)
 
-    # 随机粘连 (例如 .I8 A78 -> .I8A78)
-    join_char = "" if random.random() < 0.15 else " "
-    if random.random() < 0.3:
-        join_char = "\n"  # 模拟换行
+# ==========================================
+# V3.3 专项攻击逻辑 (修复与增强)
+# ==========================================
+def generate_v33_hard_pair():
+    """生成高度相似但语义不同的 A < B"""
+    A = LCCCallNumber()
+    B = copy.deepcopy(A)
     
-    result = join_char.join(noisy_parts)
+    attack_type = random.choices(
+        ['cutter_letter', 'cutter_digit_len', 'cutter_digit_val', 'year_near',
+         'decimal_diff', 'cutter2_diff', 'volume_diff', 'main_class_anchor'],
+        weights=[0.15, 0.15, 0.1, 0.1, 0.1, 0.1, 0.05, 0.25] # 提升主类锚点权重，矫正模型视线
+    )[0]
 
-    # 2. 单字符混淆 (Typo Injection)
-    chars = list(result)
-    for i, char in enumerate(chars):
-        if char in OCR_CONFUSION and random.random() < 0.01:
-            chars[i] = random.choice(OCR_CONFUSION[char])
-    result = "".join(chars)
+    if attack_type == 'main_class_anchor':
+        # 强制对比主类字母，后面完全一样 (A 123 < Z 123)
+        let_a, let_b = random.sample(string.ascii_uppercase, 2)
+        if let_a > let_b: let_a, let_b = let_b, let_a
+        A.cls_letters = let_a
+        B.cls_letters = let_b
+    elif attack_type == 'cutter_letter':
+        let_a, let_b = random.sample(string.ascii_uppercase, 2)
+        if let_a > let_b: let_a, let_b = let_b, let_a
+        A.cutter1_let = let_a
+        B.cutter1_let = let_b
+    elif attack_type == 'cutter_digit_len':
+        base = str(random.randint(1, 9))
+        A.cutter1_num = base
+        B.cutter1_num = base + str(random.randint(1, 9))
+    elif attack_type == 'cutter_digit_val':
+        short = str(random.randint(10, 99))
+        long = str(random.randint(1, 9))
+        A.cutter1_num = short
+        B.cutter1_num = long
+    elif attack_type == 'year_near':
+        base_year = random.randint(1950, 2020)
+        A.has_year = B.has_year = True
+        A.year = base_year
+        B.year = base_year + random.randint(1, 10)
+    elif attack_type == 'decimal_diff':
+        # A < B，A 拿长的 (.45)，B 拿短的 (.5) -> 修复确认
+        A.has_cls_decimal = B.has_cls_decimal = True
+        A.cls_decimal = str(random.randint(10, 99))
+        B.cls_decimal = str(random.randint(1, 9))
+    elif attack_type == 'cutter2_diff':
+        # A < B，A 用长数字 (.S29)，B 用短数字 (.S3) -> 修复确认
+        let = random.choice(string.ascii_uppercase)
+        A.cutter2_let = B.cutter2_let = let
+        A.has_cutter2 = B.has_cutter2 = True
+        A.cutter2_num = str(random.randint(10, 99))
+        B.cutter2_num = str(random.randint(1, 9))
+    elif attack_type == 'volume_diff':
+        A.has_suffix = B.has_suffix = True
+        A.suffix_type = 'v.'
+        B.suffix_type = 'v.'
+        base_vol = random.randint(1, 50)
+        A.suffix_num = base_vol
+        B.suffix_num = base_vol + 1
 
-    # 3. 前缀与垃圾文本注入
-    if random.random() < 0.2:  # 20% 概率加前缀
+    return A, B
+
+def apply_custom_noise(text, intensity=1.0):
+    """V3.3：可控强度 + 物理环境模拟噪音"""
+    if intensity == 0: return text
+
+    # 1. 结构噪音 (馆藏前缀)
+    if random.random() < 0.15 * intensity:
         prefix = random.choice(PREFIXES)
-        if prefix in PREFIX_MUTATIONS and random.random() < 0.3:
-            prefix = random.choice(PREFIX_MUTATIONS[prefix])
-        result = f"{prefix} {result}"
+        text = f"{prefix}\n{text}"
         
-    if random.random() < 0.05:  # 5% 概率混入周围的垃圾文本
+    # 2. 乱码注入 (模拟旁边书籍信息或出版社名被误扣取)
+    if random.random() < 0.05 * intensity:
         garbage = random.choice(GARBAGE_TEXTS)
         if random.random() > 0.5:
-            result = f"{garbage}\n{result}"
+            text = f"{garbage}\n{text}"
         else:
-            result = f"{result}\n{garbage}"
+            text = f"{text}\n{garbage}"
 
-    return result
+    # 3. 字符混淆 (OCR 错误)
+    chars = list(text)
+    for i, char in enumerate(chars):
+        if char in OCR_CONFUSION and random.random() < 0.005 * intensity:
+            chars[i] = random.choice(OCR_CONFUSION[char])
+    text = "".join(chars)
+    
+    # 4. YOLO 截断模拟 (丢弃最底下一行，模拟边框偏小)
+    lines = text.split('\n')
+    if len(lines) >= 3 and random.random() < 0.05 * intensity:
+        lines = lines[:-1]
+
+    # 5. 随机换行/空格变异
+    joiner = random.choice(["\n", " "]) if random.random() < 0.2 else "\n"
+    return joiner.join(lines)
 
 # ==========================================
 # 数据集生成逻辑
 # ==========================================
 def generate_dataset(num_samples=NUM_SAMPLES, output_file=OUTPUT_FILE):
-    print(f"Generating {num_samples} robust samples...")
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
+    print(f"🚀 正在生成 Lost Book Robot V3.3 核心修复数据集 ({num_samples} 条)...")
 
     with open(output_file, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
         writer.writerow(['text_a', 'text_b', 'label'])
 
         for i in range(num_samples):
-            # 调整了类别分布：真实书架上，0 (A<B) 占绝大多数，1 (重复) 较少，2 (错位) 偶发
-            data_type = random.choices([0, 1, 2], weights=[0.60, 0.15, 0.25])[0]
+            dice = random.random()
+            
+            if dice < 0.80: # 排序类 (80%：Label 0 或 2)
+                label = 0 if random.random() > 0.5 else 2
+                
+                if random.random() < 0.5:
+                    lcc_a, lcc_b = generate_v33_hard_pair()
+                    noise_lvl = 0 if random.random() < 0.2 else 1.0 # 保留 20% 纯净硬样本
+                else:
+                    lcc_a = LCCCallNumber()
+                    lcc_b = copy.deepcopy(lcc_a)
+                    lcc_b.cls_number += random.randint(1, 100)
+                    noise_lvl = 1.0
+                
+                if label == 2: lcc_a, lcc_b = lcc_b, lcc_a
+                
+                text_a = apply_custom_noise(lcc_a.to_string(), noise_lvl)
+                text_b = apply_custom_noise(lcc_b.to_string(), noise_lvl)
 
-            if data_type == 0:
-                lcc_a = LCCCallNumber()
-                lcc_b = lcc_a.clone_and_increment()
-                clean_a, clean_b = lcc_a.to_string(), lcc_b.to_string()
-                label = 0
-            elif data_type == 1:
+            else: # 重复类 (20%：Label 1) 专项修复区
                 lcc = LCCCallNumber()
-                clean_a = lcc.to_string()
-                clean_b = clean_a  # 底层真值相同
                 label = 1
-            else:
-                lcc_b = LCCCallNumber()
-                lcc_a = lcc_b.clone_and_increment()
-                clean_a, clean_b = lcc_a.to_string(), lcc_b.to_string()
-                label = 2
+                lcc.has_year = True
+                lcc.year = random.randint(2000, 2024)
+                base_str = lcc.to_string()
 
-            # 核心改进：即使是 A==B，我们也会分别独立施加噪音！
-            # 这迫使 LSTM 学习到 "QLIN PR 123" 和 "OLIN P R 123" 在语义上是相等的。
-            text_a = apply_real_world_ocr_noise(clean_a)
-            text_b = apply_real_world_ocr_noise(clean_b)
+                # 将 Label 1 分解为四个专项训练任务
+                dup_strategy = random.choices(
+                    ['prefix_diff', 'single_ocr_diff', 'standard_noise', 'clean'], 
+                    weights=[0.3, 0.3, 0.3, 0.1]
+                )[0]
+
+                if dup_strategy == 'prefix_diff':
+                    # 只有前缀不同，无其他噪音 (解决 Test 8 崩溃)
+                    p1, p2 = random.sample(PREFIXES, 2)
+                    text_a = f"{p1}\n{base_str}"
+                    text_b = f"{p2}\n{base_str}"
+                
+                elif dup_strategy == 'single_ocr_diff':
+                    # 只有单个 OCR 错误，前缀排版等全部一致 (解决 Test 9 崩溃)
+                    text_a = base_str
+                    chars_b = list(base_str)
+                    possible_idx = [idx for idx, c in enumerate(chars_b) if c in OCR_CONFUSION]
+                    if possible_idx:
+                        replace_idx = random.choice(possible_idx)
+                        chars_b[replace_idx] = random.choice(OCR_CONFUSION[chars_b[replace_idx]])
+                    text_b = "".join(chars_b)
+                
+                elif dup_strategy == 'standard_noise':
+                    # 模拟一本书的两张扫描件，各有各的随机噪音
+                    text_a = apply_custom_noise(base_str, 0.8)
+                    text_b = apply_custom_noise(base_str, 0.8)
+                
+                else: # 'clean'
+                    # 作为锚点的完美对照组
+                    text_a = base_str
+                    text_b = base_str
 
             writer.writerow([text_a, text_b, label])
+            if (i + 1) % (num_samples // 10 if num_samples > 10 else 1) == 0: 
+                print(f"  进度: {i + 1}/{num_samples}")
 
-            if (i + 1) % 50000 == 0:
-                print(f"  Progress: {i + 1}/{num_samples} samples generated")
-
-    print(f"Dataset saved to {output_file}")
+    print(f"✅ V3.3 数据集生成完毕，准备拯救 Bi-LSTM 的三观！")
 
 if __name__ == "__main__":
     random.seed(42)
-    generate_dataset(NUM_SAMPLES)
+    generate_dataset()

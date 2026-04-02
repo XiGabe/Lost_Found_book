@@ -39,7 +39,7 @@ def parse_args():
                         help='训练数据 CSV 路径')
     parser.add_argument('--val-ratio', type=float, default=0.1,
                         help='验证集比例')
-    parser.add_argument('--max-seq-len', type=int, default=96,
+    parser.add_argument('--max-seq-len', type=int, default=64,
                         help='最大序列长度')
 
     # 模型参数
@@ -245,8 +245,9 @@ def main():
         logger.info(f'从 epoch {start_epoch} 继续训练')
 
     # 损失函数和优化器
-    # 直接使用交叉熵，不做类别权重平衡（数据分布 60/25/15 足够均衡）
-    criterion = nn.CrossEntropyLoss()
+    # 平衡权重：Duplicate 需要足够权重来保证召回率
+    class_weights = torch.tensor([1.0, 0.7, 1.0]).to(device)
+    criterion = nn.CrossEntropyLoss(weight=class_weights)
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
     # 如果加载了 checkpoint，也加载优化器状态
