@@ -75,13 +75,16 @@ class SiameseBiLSTM(nn.Module):
 
         # 4. 分类器
         # 输入: [vec_a; vec_b; |vec_a - vec_b|] (拼接 + 差值特征)
+        # Mean Pooling 输出 hidden_dim (双向拼接后)，拼接后 + 差值 = hidden_dim * 3
         classifier_input_dim = hidden_dim * 3
         self.classifier = nn.Sequential(
             nn.Linear(classifier_input_dim, hidden_dim),
             nn.ReLU(),
+            nn.BatchNorm1d(hidden_dim),
             nn.Dropout(dropout),
             nn.Linear(hidden_dim, hidden_dim // 2),
             nn.ReLU(),
+            nn.BatchNorm1d(hidden_dim // 2),
             nn.Dropout(dropout),
             nn.Linear(hidden_dim // 2, num_classes)
         )
@@ -107,7 +110,7 @@ class SiameseBiLSTM(nn.Module):
 
     def _encode(self, input_ids: torch.Tensor) -> torch.Tensor:
         """
-        使用共享编码器编码输入
+        使用共享编码器编码输入 (Mean Pooling 忽略 Padding)
 
         Args:
             input_ids: (batch_size, seq_len)
@@ -119,17 +122,20 @@ class SiameseBiLSTM(nn.Module):
         embedded = self.embedding(input_ids)
 
         # LSTM: (batch_size, seq_len, hidden_dim)
-        lstm_out, (h_n, c_n) = self.lstm(embedded)
+        # hidden_dim = (hidden_dim // 2) * 2 双向拼接
+        lstm_out, _ = self.lstm(embedded)
 
-        # 使用最后一层的隐藏状态
-        # h_n shape: (num_layers * 2, batch_size, hidden_dim // 2)
-        # 我们需要最后一层的 forward + backward
-        # 取最后一层的双向输出
-        forward_h = h_n[-2]  # 最后一层 forward
-        backward_h = h_n[-1]  # 最后一层 backward
+        # 创建掩码，找出非 Padding 的部分
+        mask = (input_ids != 0).float().unsqueeze(-1)  # (batch_size, seq_len, 1)
 
-        # 拼接双向隐藏状态
-        hidden = torch.cat([forward_h, backward_h], dim=1)  # (batch_size, hidden_dim)
+        # Mask padding 位置的特征
+        lstm_out = lstm_out * mask
+
+        # 计算每个样本的实际长度
+        lengths = mask.sum(dim=1, keepdim=True).clamp(min=1e-9)  # (batch_size, 1, 1)
+
+        # Mean Pooling: 对所有时间步求平均（自动忽略 padding 的 0）
+        hidden = lstm_out.sum(dim=1) / lengths.squeeze(-1)  # (batch_size, hidden_dim * 2)
 
         return hidden
 
@@ -196,7 +202,7 @@ class SiameseBiLSTMWithAttention(SiameseBiLSTM):
 
     def _encode(self, input_ids: torch.Tensor) -> torch.Tensor:
         """
-        使用注意力池化编码
+        使用注意力池化编码 (Masked Softmax 忽略 Padding)
         """
         # Embedding
         embedded = self.embedding(input_ids)
@@ -204,8 +210,15 @@ class SiameseBiLSTMWithAttention(SiameseBiLSTM):
         # LSTM
         lstm_out, _ = self.lstm(embedded)  # (batch_size, seq_len, hidden_dim)
 
-        # 注意力权重
-        attn_weights = F.softmax(self.attention(lstm_out), dim=1)  # (batch_size, seq_len, 1)
+        # 1. 计算原始 Attention Logits
+        attn_logits = self.attention(lstm_out)  # (batch_size, seq_len, 1)
+
+        # 2. 获取 Mask 并把 Padding 位置替换为负无穷
+        mask = (input_ids != 0).unsqueeze(-1)   # boolean mask
+        attn_logits = attn_logits.masked_fill(~mask, -1e9)  # 核心修复
+
+        # 3. 现在的 Softmax 就只会在有效字符之间分配 100% 的权重了
+        attn_weights = F.softmax(attn_logits, dim=1)  # (batch_size, seq_len, 1)
 
         # 加权求和
         hidden = torch.sum(attn_weights * lstm_out, dim=1)  # (batch_size, hidden_dim)

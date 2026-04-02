@@ -108,6 +108,10 @@ def train_one_epoch(
 
         # 反向传播
         loss.backward()
+
+        # 梯度裁剪，防止梯度爆炸
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+
         optimizer.step()
 
         # 记录
@@ -241,9 +245,8 @@ def main():
         logger.info(f'从 epoch {start_epoch} 继续训练')
 
     # 损失函数和优化器
-    # 使用类别权重处理不平衡（可选）
-    class_weights = train_dataset.class_weights().to(device)
-    criterion = nn.CrossEntropyLoss(weight=class_weights)
+    # 直接使用交叉熵，不做类别权重平衡（数据分布 60/25/15 足够均衡）
+    criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
     # 如果加载了 checkpoint，也加载优化器状态
@@ -324,7 +327,7 @@ def main():
     save_metrics(metrics, os.path.join(output_dir, 'metrics.json'))
 
     # 绘制混淆矩阵
-    from logic.utils import plot_confusion_matrix
+    from modules.logic.utils import plot_confusion_matrix
     plot_confusion_matrix(cm, os.path.join(output_dir, 'confusion_matrix.png'))
 
     logger.info(f'所有结果已保存到: {output_dir}')

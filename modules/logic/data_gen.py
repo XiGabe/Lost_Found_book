@@ -254,4 +254,4 @@ def generate_dataset(num_samples=NUM_SAMPLES, output_file=OUTPUT_FILE):
 
 if __name__ == "__main__":
     random.seed(42)
-    generate_dataset(1000) # 测试跑 1000 条
+    generate_dataset(NUM_SAMPLES)
