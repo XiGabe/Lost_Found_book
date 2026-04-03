@@ -56,7 +56,7 @@ def load_model(checkpoint_path: str, device: torch.device = None):
 
     if _model is None:
         print(f'正在加载最佳模型引擎: {checkpoint_path}')
-        checkpoint = torch.load(checkpoint_path, map_location=device)
+        checkpoint = torch.load(checkpoint_path, map_location='cpu')
 
         # 显式创建指定长度的 Tokenizer
         _tokenizer = CharTokenizer(
@@ -83,8 +83,9 @@ def load_model(checkpoint_path: str, device: torch.device = None):
 
     return _model, _tokenizer, _device
 
-def compare_lcc(text_a: str, text_b: str, checkpoint_path: str = None) -> dict:
-    model, tokenizer, device = load_model(checkpoint_path)
+def compare_lcc(text_a: str, text_b: str, checkpoint_path: str = None, model=None, tokenizer=None, device=None) -> dict:
+    if model is None:
+        model, tokenizer, device = load_model(checkpoint_path)
 
     # 1. 极简预处理 (解决字母断裂，保留模型习惯的乱序格式)
     text_a_proc = preprocess_lcc(text_a)

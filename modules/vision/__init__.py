@@ -11,8 +11,8 @@ class VisionConfig:
     MODELS_DIR = Path(__file__).parent.parent.parent / 'weights'
 
     # YOLO 模型路径
-    YOLO_MODEL_PATH = str(MODELS_DIR / 'yolo/best.engine')
-    YOLO_FALLBACK_PATH = str(MODELS_DIR / 'yolo/best.pt')
+    YOLO_MODEL_PATH = str(MODELS_DIR / 'yolo/best.pt')
+    YOLO_FALLBACK_PATH = str(MODELS_DIR / 'yolo/best.engine')
 
     # YOLO 检测参数
     YOLO_IMG_SIZE = 640
@@ -21,7 +21,7 @@ class VisionConfig:
     YOLO_DEVICE = 0
 
     # 目标检测类别 (call_label)
-    TARGET_CLASS_ID = 1
+    TARGET_CLASS_ID = 0
     TARGET_CLASS_NAME = 'call_label'
 
     # OCR 参数 - 启用 TensorRT 加速

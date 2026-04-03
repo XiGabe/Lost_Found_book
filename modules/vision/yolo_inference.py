@@ -78,7 +78,7 @@ class YOLODetector:
                 raise FileNotFoundError(f"YOLO 模型不存在: {yolo_path}")
 
         print(f"[加载 YOLO] {yolo_path}")
-        self.model = YOLO(yolo_path, task='segment')
+        self.model = YOLO(yolo_path, task='detect')
 
     def detect_labels(self, image: np.ndarray) -> List[Dict]:
         """
