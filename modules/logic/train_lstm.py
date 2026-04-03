@@ -17,7 +17,7 @@ from tqdm import tqdm
 
 from modules.logic.tokenizer import CharTokenizer
 from modules.logic.dataset import LCCPairDataset, collate_fn, split_train_val
-from modules.logic.comparator import SiameseBiLSTM, count_parameters
+from modules.logic.comparator import ESIMBiLSTMComparator as InteractiveBiLSTM, count_parameters
 from modules.logic.utils import (
     setup_logging,
     save_checkpoint,
@@ -188,7 +188,11 @@ def main():
 
     # 创建 tokenizer
     tokenizer = CharTokenizer(vocab=CharTokenizer.get_default_vocab())
-    logger.info(f'Tokenizer: vocab_size={tokenizer.get_vocab_size()}, max_seq_len={args.max_seq_len}')
+
+    # 获取 SEP token ID (V4.0 InteractiveBiLSTM 需要)
+    sep_token_id = tokenizer.char2idx.get("<SEP>", 2)
+
+    logger.info(f'Tokenizer: vocab_size={tokenizer.get_vocab_size()}, max_seq_len={args.max_seq_len}, sep_token_id={sep_token_id}')
 
     # 划分训练集和验证集
     train_csv, val_csv = split_train_val(args.data, val_ratio=args.val_ratio, random_seed=args.seed)
@@ -219,14 +223,14 @@ def main():
     logger.info(f'验证集: {len(val_dataset)} 样本')
     logger.info(f'标签分布 (训练集): {train_dataset.get_label_distribution()}')
 
-    # 创建模型
-    model = SiameseBiLSTM(
+    # 创建模型 (V4.2 ESIMBiLSTMComparator)
+    model = InteractiveBiLSTM(
         vocab_size=tokenizer.get_vocab_size(),
         embedding_dim=args.embedding_dim,
         hidden_dim=args.hidden_dim,
         num_layers=args.num_layers,
         dropout=args.dropout,
-        num_classes=args.num_classes
+        num_classes=args.num_classes,
     )
 
     # 打印模型配置

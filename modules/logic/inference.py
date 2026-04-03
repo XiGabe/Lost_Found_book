@@ -10,7 +10,7 @@ from pathlib import Path
 import torch
 
 from modules.logic.tokenizer import CharTokenizer
-from modules.logic.comparator import SiameseBiLSTM
+from modules.logic.comparator import ESIMBiLSTMComparator
 
 # ==========================================
 # 全局常量与配置
@@ -64,14 +64,14 @@ def load_model(checkpoint_path: str, device: torch.device = None):
             max_seq_len=MAX_SEQ_LEN
         )
 
-        # 初始化模型架构 (确保与 train_lstm.py 的默认参数一致)
-        _model = SiameseBiLSTM(
+        # 初始化模型架构 (V4.2 ESIMBiLSTMComparator)
+        _model = ESIMBiLSTMComparator(
             vocab_size=_tokenizer.get_vocab_size(),
             embedding_dim=128,
             hidden_dim=256,
             num_layers=2,
             dropout=0.3,
-            num_classes=3
+            num_classes=3,
         )
 
         _model.load_state_dict(checkpoint['model_state_dict'])

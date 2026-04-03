@@ -77,12 +77,14 @@ class CharTokenizer:
         获取默认词汇表（包含 ASCII 可见字符 + 常见 OCR 混淆字符）
         """
         # 特殊标记
+        SEP_TOKEN = "<SEP>"
         vocab = {
             cls.PAD_TOKEN: 0,
             cls.UNK_TOKEN: 1,
+            SEP_TOKEN: 2,
         }
 
-        idx = 2
+        idx = 3
 
         # 数字
         for c in '0123456789':

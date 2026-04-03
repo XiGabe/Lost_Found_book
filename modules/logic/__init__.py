@@ -1,7 +1,7 @@
 """
 Logic module for LCC comparison
 """
-from .comparator import SiameseBiLSTM
+from .comparator import InteractiveBiLSTM
 from .tokenizer import CharTokenizer
 
-__all__ = ['SiameseBiLSTM', 'CharTokenizer']
+__all__ = ['InteractiveBiLSTM', 'CharTokenizer']

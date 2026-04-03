@@ -1,12 +1,14 @@
 """
-Siamese Bi-LSTM 模型 for LC 索书号排序 (V3.2 架构升级版)
+ESIM Bi-LSTM Model for LC Call Number Ordering (V6 Diff Amplifier)
 
-架构：
-- 共享 Embedding 层
-- 共享 Bi-LSTM 编码器
-- 双重池化策略 (Mean + Max Pooling) -> 解决特征稀释问题
-- 拼接两个向量 + 差值特征
-- MLP 分类器
+Architecture:
+- Twin Tower Independent Encoder (avoids Padding isolation band)
+- Soft Cross-Attention alignment between A and B
+- Concatenated features [x, align, x-align, x*align] for enhanced inference
+- BiLSTM composition layer
+- Multi-Pooling (Max + Mean) prevents tail feature loss
+- V6: Diff Amplifier (2-layer MLP + GELU) to amplify tiny differences at tail
+  and suppress massive prefix differences
 """
 
 import torch
@@ -15,10 +17,12 @@ import torch.nn.functional as F
 from typing import Tuple
 
 
-class SiameseBiLSTM(nn.Module):
+class ESIMBiLSTMComparator(nn.Module):
     """
-    Siamese Bi-LSTM 用于文本对比较
-    支持双重池化 (Mean & Max Pooling) 以捕捉字符级微小变异
+    V6: ESIM-style Siamese Attention Network with Diff Amplifier
+
+    The Diff Amplifier learns to suppress prefix asymmetry noise while
+    amplifying the tiny differences at the tail (W vs X, v.15 vs v.16)
     """
 
     def __init__(
@@ -31,56 +35,67 @@ class SiameseBiLSTM(nn.Module):
         num_classes: int = 3,
         padding_idx: int = 0,
     ):
-        super(SiameseBiLSTM, self).__init__()
+        super(ESIMBiLSTMComparator, self).__init__()
 
-        self.vocab_size = vocab_size
-        self.embedding_dim = embedding_dim
         self.hidden_dim = hidden_dim
-        self.num_layers = num_layers
-        self.num_classes = num_classes
+        self.padding_idx = padding_idx
 
-        # 1. 共享 Embedding 层
-        self.embedding = nn.Embedding(
-            vocab_size,
-            embedding_dim,
-            padding_idx=padding_idx
-        )
+        # 1. Embedding layer
+        self.embedding = nn.Embedding(vocab_size, embedding_dim, padding_idx=padding_idx)
+        self.embed_dropout = nn.Dropout(dropout)
 
-        # 2. 共享 Bi-LSTM 编码器
-        self.lstm = nn.LSTM(
+        # 2. Independent encoder (Twin Tower avoids Padding isolation)
+        self.lstm_encode = nn.LSTM(
             embedding_dim,
-            hidden_dim // 2,  # 双向拼接后总维度为 hidden_dim
-            num_layers=num_layers,
+            hidden_dim // 2,
+            num_layers=1,
             batch_first=True,
-            bidirectional=True,
-            dropout=dropout if num_layers > 1 else 0
+            bidirectional=True
         )
 
-        # 3. Dropout
-        self.dropout = nn.Dropout(dropout)
+        # 3. Inference composer (processes Attention-composed features)
+        self.lstm_compose = nn.LSTM(
+            hidden_dim * 4,
+            hidden_dim // 2,
+            num_layers=1,
+            batch_first=True,
+            bidirectional=True
+        )
 
-        # 4. 分类器
-        # 每个序列经过编码后：[Mean_Pool; Max_Pool] -> 维度是 hidden_dim * 2
-        # Siamese Head 拼接: [vec_a; vec_b; vec_a - vec_b; vec_a * vec_b] -> 总维度 * 4
-        classifier_input_dim = (hidden_dim * 2) * 4
-        
+        # 4. V6: Diff Amplifier - suppresses prefix noise, amplifies tail differences
+        self.diff_amplifier = nn.Sequential(
+            nn.Linear(hidden_dim * 2, hidden_dim * 2),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim * 2, hidden_dim * 2)
+        )
+
+        # 5. Fusion classifier: [v_a, v_b, amplified_diff, hadamard] = 8H
+        classifier_input_dim = hidden_dim * 8
         self.classifier = nn.Sequential(
+            nn.Dropout(dropout),
             nn.Linear(classifier_input_dim, hidden_dim * 2),
-            nn.ReLU(),
+            nn.GELU(),
             nn.BatchNorm1d(hidden_dim * 2),
             nn.Dropout(dropout),
             nn.Linear(hidden_dim * 2, hidden_dim),
-            nn.ReLU(),
+            nn.GELU(),
             nn.BatchNorm1d(hidden_dim),
-            nn.Dropout(dropout),
             nn.Linear(hidden_dim, num_classes)
         )
 
-        # 初始化权重
         self._init_weights()
 
     def _init_weights(self):
-        for name, param in self.lstm.named_parameters():
+        for name, param in self.lstm_encode.named_parameters():
+            if 'weight_ih' in name:
+                nn.init.xavier_uniform_(param)
+            elif 'weight_hh' in name:
+                nn.init.orthogonal_(param)
+            elif 'bias' in name:
+                nn.init.zeros_(param)
+
+        for name, param in self.lstm_compose.named_parameters():
             if 'weight_ih' in name:
                 nn.init.xavier_uniform_(param)
             elif 'weight_hh' in name:
@@ -94,54 +109,72 @@ class SiameseBiLSTM(nn.Module):
                 if module.bias is not None:
                     nn.init.zeros_(module.bias)
 
-    def _encode(self, input_ids: torch.Tensor) -> torch.Tensor:
+    def soft_attention_align(self, x1, x2, mask1, mask2):
         """
-        使用共享编码器编码输入 (双重池化)
+        Compute Soft Cross-Attention between A and B
+        Enables L2 and M53 to align across length differences
         """
-        # 1. Embedding & LSTM
-        embedded = self.embedding(input_ids)
-        lstm_out, _ = self.lstm(embedded)  # (batch, seq_len, hidden_dim)
+        attention_weight = torch.bmm(x1, x2.transpose(1, 2))
 
-        # 2. 创建掩码
-        mask = (input_ids != 0).float().unsqueeze(-1)  # (batch, seq_len, 1)
+        mask1_float = mask1.float().unsqueeze(2)
+        mask2_float = mask2.float().unsqueeze(1)
 
-        # --- Mean Pooling ---
-        # 排除 Padding 影响
-        masked_out = lstm_out * mask
-        lengths = mask.sum(dim=1, keepdim=True).clamp(min=1e-9)
-        mean_pool = masked_out.sum(dim=1) / lengths.squeeze(-1) # (batch, hidden_dim)
+        weight1 = attention_weight.masked_fill(mask2_float == 0, -1e9)
+        weight2 = attention_weight.transpose(1, 2).masked_fill(mask1_float == 0, -1e9)
 
-        # --- Max Pooling (核心修改) ---
-        # 排除 Padding 干扰：将 Padding 位置设为极小值
-        max_input = lstm_out.masked_fill(mask == 0, -1e9)
-        max_pool, _ = torch.max(max_input, dim=1) # (batch, hidden_dim)
+        prob1 = F.softmax(weight1, dim=2)
+        prob2 = F.softmax(weight2, dim=2)
 
-        # 3. 拼接两种池化特征
-        combined = torch.cat([mean_pool, max_pool], dim=1) # (batch, hidden_dim * 2)
-        return combined
+        x1_align = torch.bmm(prob1, x2)
+        x2_align = torch.bmm(prob2, x1)
 
-    def forward(
-        self,
-        input_ids_a: torch.Tensor,
-        input_ids_b: torch.Tensor
-    ) -> torch.Tensor:
-        # 编码
-        vec_a = self._encode(input_ids_a)  # (batch, hidden_dim * 2)
-        vec_b = self._encode(input_ids_b)
+        return x1_align, x2_align
 
-        # Dropout
-        vec_a = self.dropout(vec_a)
-        vec_b = self.dropout(vec_b)
+    def pooling(self, x, mask):
+        """Use both Max and Mean Pooling to preserve global and extreme features"""
+        mask_expand = mask.unsqueeze(-1).expand_as(x)
+        x_masked = x.masked_fill(~mask_expand, -1e9)
+        v_max, _ = x_masked.max(dim=1)
 
-        # 拼接特征: [vec_a; vec_b; vec_a - vec_b; vec_a * vec_b]
-        # 注意：必须保留方向信息 (vec_a - vec_b 而非 |vec_a - vec_b|)
-        # vec_a * vec_b 提供乘法交互特征，捕捉非线性关系
-        diff = vec_a - vec_b
-        hadamard = vec_a * vec_b
-        combined = torch.cat([vec_a, vec_b, diff, hadamard], dim=1) 
+        x_masked_mean = x.masked_fill(~mask_expand, 0)
+        v_mean = x_masked_mean.sum(dim=1) / mask.float().sum(dim=1, keepdim=True).clamp(min=1e-9)
 
-        # 分类
-        logits = self.classifier(combined)
+        return torch.cat([v_max, v_mean], dim=1)
+
+    def forward(self, input_ids_a: torch.Tensor, input_ids_b: torch.Tensor) -> torch.Tensor:
+        mask_a = input_ids_a != self.padding_idx
+        mask_b = input_ids_b != self.padding_idx
+
+        # 1. Independent encoding
+        emb_a = self.embed_dropout(self.embedding(input_ids_a))
+        emb_b = self.embed_dropout(self.embedding(input_ids_b))
+
+        out_a, _ = self.lstm_encode(emb_a)
+        out_b, _ = self.lstm_encode(emb_b)
+
+        # 2. Cross-attention alignment
+        align_a, align_b = self.soft_attention_align(out_a, out_b, mask_a, mask_b)
+
+        # 3. Enhanced inference feature concatenation [orig, align, diff, prod]
+        comp_a = torch.cat([out_a, align_a, out_a - align_a, out_a * align_a], dim=-1)
+        comp_b = torch.cat([out_b, align_b, out_b - align_b, out_b * align_b], dim=-1)
+
+        # 4. Composition inference layer
+        compose_a, _ = self.lstm_compose(comp_a)
+        compose_b, _ = self.lstm_compose(comp_b)
+
+        # 5. Dual pooling
+        v_a = self.pooling(compose_a, mask_a)
+        v_b = self.pooling(compose_b, mask_b)
+
+        # 6. V6: Raw diff fed through Diff Amplifier to suppress prefix noise
+        raw_diff = v_a - v_b
+        amplified_diff = self.diff_amplifier(raw_diff)
+        hadamard = v_a * v_b
+
+        # 7. Classification with [v_a, v_b, amplified_diff, hadamard]
+        pooled_features = torch.cat([v_a, v_b, amplified_diff, hadamard], dim=1)
+        logits = self.classifier(pooled_features)
         return logits
 
     def predict(
@@ -155,62 +188,9 @@ class SiameseBiLSTM(nn.Module):
         return preds, probs
 
 
-class SiameseBiLSTMWithAttention(SiameseBiLSTM):
-    """
-    带注意力池化的版本 (已同步升级分类头维度)
-    """
-    def __init__(self, *args, **kwargs):
-        super(SiameseBiLSTMWithAttention, self).__init__(*args, **kwargs)
-        # 注意力只需要基于单向量 hidden_dim
-        self.attention = nn.Linear(self.hidden_dim, 1)
-        
-        # 注意：Attention 版本通常只输出单一向量，
-        # 如果需要同时使用 Mean/Max/Attn，需要修改 classifier 的维度
-        # 此处重写 classifier 适配 Attention 的单输出
-        classifier_input_dim = self.hidden_dim * 3
-        self.classifier = nn.Sequential(
-            nn.Linear(classifier_input_dim, self.hidden_dim),
-            nn.ReLU(),
-            nn.BatchNorm1d(self.hidden_dim),
-            nn.Dropout(kwargs.get('dropout', 0.3)),
-            nn.Linear(self.hidden_dim, self.num_classes)
-        )
-
-    def _encode(self, input_ids: torch.Tensor) -> torch.Tensor:
-        embedded = self.embedding(input_ids)
-        lstm_out, _ = self.lstm(embedded)
-        
-        attn_logits = self.attention(lstm_out)
-        mask = (input_ids != 0).unsqueeze(-1)
-        attn_logits = attn_logits.masked_fill(~mask, -1e9)
-        
-        attn_weights = F.softmax(attn_logits, dim=1)
-        hidden = torch.sum(attn_weights * lstm_out, dim=1)
-        return hidden
-
-
 def count_parameters(model: nn.Module) -> int:
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
-if __name__ == "__main__":
-    vocab_size = 100
-    batch_size = 4
-    seq_len = 64
-
-    model = SiameseBiLSTM(
-        vocab_size=vocab_size,
-        embedding_dim=128,
-        hidden_dim=256,
-        num_layers=2,
-        dropout=0.3,
-        num_classes=3
-    )
-
-    print(f"V3.2 模型参数量: {count_parameters(model):,}")
-    
-    input_ids_a = torch.randint(0, vocab_size, (batch_size, seq_len))
-    input_ids_b = torch.randint(0, vocab_size, (batch_size, seq_len))
-    logits = model(input_ids_a, input_ids_b)
-
-    print(f"输出 shape: {logits.shape}") # 应该是 [4, 3]
+# Backward compatibility alias
+InteractiveBiLSTM = ESIMBiLSTMComparator
