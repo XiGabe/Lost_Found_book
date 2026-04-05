@@ -583,6 +583,57 @@ class E2EPipeline:
 
         return result
 
+    def process_image_bytes(self, image_bytes: bytes, **kwargs) -> E2ETestResult:
+        """
+        处理字节格式的图片数据
+
+        Args:
+            image_bytes: 图片字节数据 (JPEG/PNG 等)
+            **kwargs: 传递给 process_single_image 的其他参数
+
+        Returns:
+            E2ETestResult 对象
+        """
+        import cv2
+        import numpy as np
+        from pathlib import Path
+        import uuid
+
+        # 将字节解码为 numpy array
+        nparr = np.frombuffer(image_bytes, np.uint8)
+        image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+        if image is None:
+            result = E2ETestResult(
+                image_path="bytes_input",
+                image_name="bytes_input",
+                processing_time=0,
+                num_detections=0,
+                num_successful_ocr=0,
+                ocr_texts=[],
+                num_pairs=0,
+                num_out_of_order=0,
+                num_in_order=0,
+                num_duplicates=0,
+                pair_results=[],
+                out_of_order_pairs=[],
+                status='failed',
+                error_message='无法解码图片字节数据'
+            )
+            return result
+
+        # 临时保存到文件，用于兼容现有的 process_single_image
+        temp_dir = Path(__file__).parent.parent.parent / 'output' / 'temp'
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        temp_path = temp_dir / f"temp_{uuid.uuid4().hex}.jpg"
+        cv2.imwrite(str(temp_path), image)
+
+        try:
+            return self.process_single_image(str(temp_path), **kwargs)
+        finally:
+            if temp_path.exists():
+                temp_path.unlink()
+
     def process_batch(
         self,
         image_paths: List[str],
