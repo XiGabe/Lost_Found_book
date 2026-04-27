@@ -26,7 +26,7 @@ def launch_setup(context):
     if compiled == 'True':
         slam_package_path = get_package_share_directory('slam')
     else:
-        slam_package_path = '/home/ubuntu/ros2_ws/src/slam'
+        slam_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/slam'
 
     slam_params = RewrittenYaml(
         source_file=os.path.join(slam_package_path, 'config/slam.yaml'),

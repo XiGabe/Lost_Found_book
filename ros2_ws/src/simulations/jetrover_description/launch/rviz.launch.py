@@ -16,7 +16,7 @@ def generate_launch_description():
     if compiled == 'True':
         jetrover_description_package_path = get_package_share_directory('jetrover_description')
     else:
-        jetrover_description_package_path = '/home/ubuntu/ros2_ws/src/simulations/jetrover_description'
+        jetrover_description_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/simulations/jetrover_description'
 
     # Create the launch configuration variables
     namespace = LaunchConfiguration('namespace')

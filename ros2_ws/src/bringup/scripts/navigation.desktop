@@ -2,7 +2,7 @@
 Name=Navigation
 Comment=Navigation Program
 Encoding=UTF-8
-Exec=bash /home/ubuntu/ros2_ws/src/bringup/scripts/navigation.sh
+Exec=bash /home/ubuntu/Lost_Found_book/ros2_ws/src/bringup/scripts/navigation.sh
 Terminal=true
 MultipleArgs=false
 Type=Application

@@ -14,8 +14,8 @@ def launch_setup(context):
         example_package_path = get_package_share_directory('example')
         xf_mic_asr_offline_package_path = get_package_share_directory('xf_mic_asr_offline')
     else:
-        example_package_path = '/home/ubuntu/ros2_ws/src/example'
-        xf_mic_asr_offline_package_path = '/home/ubuntu/ros2_ws/src/xf_mic_asr_offline'
+        example_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/example'
+        xf_mic_asr_offline_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/xf_mic_asr_offline'
 
     map_name = LaunchConfiguration('map_name', default='map_01')
     map_name_arg = DeclareLaunchArgument('map_name', default_value=map_name)

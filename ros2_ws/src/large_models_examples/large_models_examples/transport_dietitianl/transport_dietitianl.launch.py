@@ -15,9 +15,9 @@ def launch_setup(context):
         navigation_package_path = get_package_share_directory('navigation')
         example_package_path = get_package_share_directory('large_models_examples')
     else:
-        slam_package_path = '/home/ubuntu/ros2_ws/src/slam'
-        navigation_package_path = '/home/ubuntu/ros2_ws/src/navigation'
-        example_package_path = '/home/ubuntu/ros2_ws/src/large_models_examples'
+        slam_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/slam'
+        navigation_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/navigation'
+        example_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/large_models_examples'
 
     map_name = LaunchConfiguration('map', default='map_01').perform(context)
     debug = LaunchConfiguration('debug', default='false')
@@ -69,7 +69,7 @@ def launch_setup(context):
          PushRosNamespace(robot_name),
          automatic_transport_launch,
          TimerAction(
-             period=15.0,  # 延时等待其它节点启动好(delay for enabling other nodes)
+             period=15.0,  # 延时等待其它节点启动�?delay for enabling other nodes)
              actions=[navigation_launch],
          ),
       ]

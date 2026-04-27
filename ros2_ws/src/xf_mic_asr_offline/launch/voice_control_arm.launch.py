@@ -13,8 +13,8 @@ def launch_setup(context):
         controller_package_path = get_package_share_directory('controller')
         xf_mic_asr_offline_package_path = get_package_share_directory('xf_mic_asr_offline')
     else:
-        controller_package_path = '/home/ubuntu/ros2_ws/src/driver/controller'
-        xf_mic_asr_offline_package_path = '/home/ubuntu/ros2_ws/src/xf_mic_asr_offline'
+        controller_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/driver/controller'
+        xf_mic_asr_offline_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/xf_mic_asr_offline'
 
     controller_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(

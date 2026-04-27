@@ -18,9 +18,9 @@ def launch_setup(context):
         peripherals_package_path = get_package_share_directory('peripherals')
         kinematics_package_path = get_package_share_directory('kinematics')
     else:
-        controller_package_path = '/home/ubuntu/ros2_ws/src/driver/controller'
-        peripherals_package_path = '/home/ubuntu/ros2_ws/src/peripherals'
-        kinematics_package_path = '/home/ubuntu/ros2_ws/src/driver/kinematics'
+        controller_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/driver/controller'
+        peripherals_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/peripherals'
+        kinematics_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/driver/kinematics'
     depth_camera_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(peripherals_package_path, 'launch/depth_camera.launch.py')),

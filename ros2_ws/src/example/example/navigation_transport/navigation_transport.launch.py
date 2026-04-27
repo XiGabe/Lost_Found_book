@@ -16,10 +16,10 @@ def launch_setup(context):
         navigation_package_path = get_package_share_directory('navigation')
         example_package_path = get_package_share_directory('example')
     else:
-        jetrover_description_package_path = '/home/ubuntu/ros2_ws/src/simulations/jetrover_description'
-        slam_package_path = '/home/ubuntu/ros2_ws/src/slam'
-        navigation_package_path = '/home/ubuntu/ros2_ws/src/navigation'
-        example_package_path = '/home/ubuntu/ros2_ws/src/example'
+        jetrover_description_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/simulations/jetrover_description'
+        slam_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/slam'
+        navigation_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/navigation'
+        example_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/example'
 
     map_name = LaunchConfiguration('map', default='map_01').perform(context)
     debug = LaunchConfiguration('debug', default='false')
@@ -79,7 +79,7 @@ def launch_setup(context):
          PushRosNamespace(robot_name),
          automatic_pick_launch,
          TimerAction(
-             period=10.0,  # 延时等待其它节点启动好(wait for other nodes to start up with a delay)
+             period=10.0,  # 延时等待其它节点启动�?wait for other nodes to start up with a delay)
              actions=[navigation_launch],
          ),
       ]

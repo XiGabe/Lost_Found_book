@@ -11,8 +11,8 @@ def generate_launch_description():
         jetrover_description_package_path = get_package_share_directory('jetrover_description')
         peripherals_package_path = get_package_share_directory('peripherals')
     else:
-        jetrover_description_package_path = '/home/ubuntu/ros2_ws/src/simulations/jetrover_description'
-        peripherals_package_path = '/home/ubuntu/ros2_ws/src/peripherals'
+        jetrover_description_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/simulations/jetrover_description'
+        peripherals_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/peripherals'
 
     robot_description_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([os.path.join(jetrover_description_package_path, 'launch/robot_description.launch.py')]),

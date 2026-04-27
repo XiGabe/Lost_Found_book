@@ -14,9 +14,9 @@ def launch_setup(context):
         app_package_path = get_package_share_directory('app')
         peripherals_package_path = get_package_share_directory('peripherals')
     else:
-        controller_package_path = '/home/ubuntu/ros2_ws/src/driver/controller'
-        app_package_path = '/home/ubuntu/ros2_ws/src/app'
-        peripherals_package_path = '/home/ubuntu/ros2_ws/src/peripherals'
+        controller_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/driver/controller'
+        app_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/app'
+        peripherals_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/peripherals'
 
     controller_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(

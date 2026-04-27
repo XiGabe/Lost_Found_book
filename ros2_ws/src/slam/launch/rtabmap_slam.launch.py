@@ -32,7 +32,7 @@ def launch_setup(context):
     if compiled == 'True':
         slam_package_path = get_package_share_directory('slam')
     else:
-        slam_package_path = '/home/ubuntu/ros2_ws/src/slam'
+        slam_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/slam'
 
     base_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -58,7 +58,7 @@ def launch_setup(context):
          PushRosNamespace(robot_name),
          base_launch,
          TimerAction(
-             period=10.0,  # 延时等待其它节点启动好(delaying to wait for other nodes to start up properly)
+             period=10.0,  # 延时等待其它节点启动�?delaying to wait for other nodes to start up properly)
              actions=[rtabmap_launch],
          ),
       ]

@@ -31,9 +31,9 @@ def launch_setup(context):
         controller_package_path = get_package_share_directory('controller')
     else:
         large_models_example_package_path = (
-            '/home/ubuntu/ros2_ws/src/large_models_examples/large_models_examples'
+            '/home/ubuntu/Lost_Found_book/ros2_ws/src/large_models_examples/large_models_examples'
         )
-        controller_package_path = '/home/ubuntu/ros2_ws/src/controller'
+        controller_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/controller'
 
 
     navigation_launch = IncludeLaunchDescription(

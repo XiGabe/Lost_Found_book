@@ -20,7 +20,7 @@ def launch_setup(context):
     if compiled == 'True':
         controller_package_path = get_package_share_directory('controller')
     else:
-        controller_package_path = '/home/ubuntu/ros2_ws/src/driver/controller'
+        controller_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/driver/controller'
     
     if action_name != '':
         action_param = RewrittenYaml(

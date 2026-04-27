@@ -17,7 +17,7 @@ else
   --name my_ros2_container \
   --network=host \
   --privileged \
-  -v /home/$SUDO_USER/ros2_ws:/root/ros2_ws \
+  -v /home/$SUDO_USER/Lost_Found_book/ros2_ws:/root/ros2_ws \
   my_ros2 \
   bash -c "cd /root/ros2_ws && exec bash"
 fi

@@ -12,7 +12,7 @@ def launch_setup(context):
     if compiled == 'True':
         xf_mic_asr_offline_package_path = get_package_share_directory('xf_mic_asr_offline')
     else:
-        xf_mic_asr_offline_package_path = '/home/ubuntu/ros2_ws/src/xf_mic_asr_offline'
+        xf_mic_asr_offline_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/xf_mic_asr_offline'
 
     mic_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(

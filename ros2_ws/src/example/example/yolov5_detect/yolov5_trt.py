@@ -399,7 +399,7 @@ class YoLov5TRT(object):
 if __name__ == "__main__":
     import os
     import sdk.fps as fps
-    os.system('sudo /home/ubuntu/ros2_ws/src/example/example/yolov5_detect/reset.sh')
+    os.system('sudo /home/ubuntu/Lost_Found_book/ros2_ws/src/example/example/yolov5_detect/reset.sh')
     # classes = ['go', 'right', 'park', 'red', 'green', 'crosswalk']
     # classes = ['BananaPeel','BrokenBones','CigaretteEnd','DisposableChopsticks','Ketchup','Marker','OralLiquidBottle','Plate','PlasticBottle','StorageBattery','Toothbrush', 'Umbrella']
     classes = ["person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light",

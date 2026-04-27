@@ -20,9 +20,9 @@ def launch_setup(context):
         controller_package_path = get_package_share_directory('controller')
         example_package_path = get_package_share_directory('example')
     else:
-        peripherals_package_path = '/home/ubuntu/ros2_ws/src/peripherals'
-        controller_package_path = '/home/ubuntu/ros2_ws/src/driver/controller'
-        example_package_path = '/home/ubuntu/ros2_ws/src/example'
+        peripherals_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/peripherals'
+        controller_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/driver/controller'
+        example_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/example'
 
     depth_camera_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(

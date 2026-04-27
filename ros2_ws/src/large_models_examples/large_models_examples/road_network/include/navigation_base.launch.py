@@ -15,8 +15,8 @@ def launch_setup(context):
         slam_package_path = get_package_share_directory('slam')
         large_models_example_package_path = get_package_share_directory('large_models_examples')
     else:
-        slam_package_path = '/home/ubuntu/ros2_ws/src/slam'
-        large_models_example_package_path = '/home/ubuntu/ros2_ws/src/large_models_examples/large_models_examples'
+        slam_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/slam'
+        large_models_example_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/large_models_examples/large_models_examples'
 
 
     use_namespace = LaunchConfiguration('use_namespace').perform(context)

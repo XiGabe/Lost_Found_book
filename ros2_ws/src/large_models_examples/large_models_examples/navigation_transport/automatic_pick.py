@@ -65,7 +65,7 @@ def prompt(results, bboxes=None, points=None, labels=None, texts=None, log=None)
 
 # display_size = [int(640*6/4), int(480*6/4)]
 class AutomaticPickNode(Node):
-    config_path = '/home/ubuntu/ros2_ws/src/large_models_examples/config/automatic_pick_roi.yaml'
+    config_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/large_models_examples/config/automatic_pick_roi.yaml'
 
     lab_data = common.get_yaml_data("/home/ubuntu/software/lab_tool/lab_config.yaml")
     
@@ -84,9 +84,9 @@ class AutomaticPickNode(Node):
         self.box = []
         
         self.mouse_click = False
-        self.selection = None  # Real-time tracking of the region under the mouse cursor (实时跟踪鼠标的跟踪区域)
-        self.track_window = None  # Region where the object to be detected is located (要检测的物体所在区域)
-        self.drag_start = None  # Flag indicating whether mouse dragging has started (标记，是否开始拖动鼠标)
+        self.selection = None  # Real-time tracking of the region under the mouse cursor (实时跟踪鼠标的跟踪区�?
+        self.track_window = None  # Region where the object to be detected is located (要检测的物体所在区�?
+        self.drag_start = None  # Flag indicating whether mouse dragging has started (标记，是否开始拖动鼠�?
         self.start_circle = True
         self.start_click = False
         self.pick_finish = False
@@ -226,9 +226,9 @@ class AutomaticPickNode(Node):
             self.selection = None
         if event == cv2.EVENT_RBUTTONDOWN:
             self.mouse_click = False
-            self.selection = None  # Real-time tracking of the region under the mouse cursor (实时跟踪鼠标的跟踪区域)
-            self.track_window = None  # Region where the object to be detected is located (要检测的物体所在区域)
-            self.drag_start = None  # Flag indicating whether mouse dragging has started (标记，是否开始拖动鼠标)
+            self.selection = None  # Real-time tracking of the region under the mouse cursor (实时跟踪鼠标的跟踪区�?
+            self.track_window = None  # Region where the object to be detected is located (要检测的物体所在区�?
+            self.drag_start = None  # Flag indicating whether mouse dragging has started (标记，是否开始拖动鼠�?
             self.start_circle = True
             self.start_click = False
             self.start_pick = False
@@ -340,10 +340,10 @@ class AutomaticPickNode(Node):
         # cv2.imshow('image', dilated)
         center_x, center_y, angle = -1, -1, -1
         if len(contours) != 0:
-            areaMaxContour, area_max = common.get_area_max_contour(contours, 10)  # Find the largest contour(找出最大轮廓)
+            areaMaxContour, area_max = common.get_area_max_contour(contours, 10)  # Find the largest contour(找出最大轮�?
             if areaMaxContour is not None:
-                if 10 < area_max:  # The maximum area has been found(有找到最大面积)
-                    rect = cv2.minAreaRect(areaMaxContour)  # The minimum bounding rectangle(最小外接矩形)
+                if 10 < area_max:  # The maximum area has been found(有找到最大面�?
+                    rect = cv2.minAreaRect(areaMaxContour)  # The minimum bounding rectangle(最小外接矩�?
                     angle = rect[2]
                     box = np.intp(cv2.boxPoints(rect))  # The four corner points of the minimum bounding rectangle(最小外接矩形的四个顶点)
                     for j in range(4):
@@ -355,8 +355,8 @@ class AutomaticPickNode(Node):
                     ptime_start_x, ptime_start_y = box[0, 0], box[0, 1]
                     pt3_x, pt3_y = box[2, 0], box[2, 1]
                     radius = abs(ptime_start_x - pt3_x)
-                    center_x, center_y = int((ptime_start_x + pt3_x) / 2), int((ptime_start_y + pt3_y) / 2)  # Center point(中心点)
-                    cv2.circle(img, (center_x, center_y), 5, (0, 255, 255), -1)  # Draw the center point(画出中心点)
+                    center_x, center_y = int((ptime_start_x + pt3_x) / 2), int((ptime_start_y + pt3_y) / 2)  # Center point(中心�?
+                    cv2.circle(img, (center_x, center_y), 5, (0, 255, 255), -1)  # Draw the center point(画出中心�?
 
         return center_x, center_y, angle
 
@@ -365,10 +365,10 @@ class AutomaticPickNode(Node):
         results = prompt(everything_results, bboxes=[box])
         # annotated_frame = results[0].plot()
         mask = results[0].masks
-        mask = mask.data  # Typically a torch.Tensor (通常是 torch.Tensor)
+        mask = mask.data  # Typically a torch.Tensor (通常�?torch.Tensor)
         if not isinstance(mask, np.ndarray):
             mask = mask.cpu().numpy()
-        if mask.ndim == 3 and mask.shape[0] == 1:  # May be in shape (1, H, W), need to remove the first dimension (可能是 (1, H, W) 需要去掉第一维)
+        if mask.ndim == 3 and mask.shape[0] == 1:  # May be in shape (1, H, W), need to remove the first dimension (可能�?(1, H, W) 需要去掉第一�?
             mask = mask[0]
         
         mask = (mask * 255).astype(np.uint8)
@@ -380,8 +380,8 @@ class AutomaticPickNode(Node):
         center_x, center_y, angle = -1, -1, -1
         if areaMaxContour is not None:
             if 10 < area_max:
-                rect = cv2.minAreaRect(areaMaxContour)  # Obtain the minimum bounding rectangle(获取最小外接矩形)
-                #In version 4.5, the edge that first aligns with clockwise rotation along the x-axis is defined as width, and the angle is the rotation angle; angle ∈ (0, 90] (4.5版本定义为，x轴顺时针旋转最先重合的边为w，angle为x轴顺时针旋转的角度，angle取值为(0,90])
+                rect = cv2.minAreaRect(areaMaxContour)  # Obtain the minimum bounding rectangle(获取最小外接矩�?
+                #In version 4.5, the edge that first aligns with clockwise rotation along the x-axis is defined as width, and the angle is the rotation angle; angle �?(0, 90] (4.5版本定义为，x轴顺时针旋转最先重合的边为w，angle为x轴顺时针旋转的角度，angle取值为(0,90])
                 angle = rect[2]
                 box = np.intp(cv2.boxPoints(rect))  # The four corner points of the minimum bounding rectangle(最小外接矩形的四个顶点)
 
@@ -390,9 +390,9 @@ class AutomaticPickNode(Node):
                 ptime_start_x, ptime_start_y = box[0, 0], box[0, 1]
                 pt3_x, pt3_y = box[2, 0], box[2, 1]
                 radius = abs(ptime_start_x - pt3_x)
-                center_x, center_y = int((ptime_start_x + pt3_x) / 2), int((ptime_start_y + pt3_y) / 2)  # Center point(中心点)
+                center_x, center_y = int((ptime_start_x + pt3_x) / 2), int((ptime_start_y + pt3_y) / 2)  # Center point(中心�?
                 center_y = int(center_y - rect[1][1] / 2 + rect[1][1] * factor)
-                cv2.circle(image, (center_x, center_y), 5, (0, 255, 255), -1)  # Draw the center point(画出中心点)
+                cv2.circle(image, (center_x, center_y), 5, (0, 255, 255), -1)  # Draw the center point(画出中心�?
                 h, w = image.shape[:2]
                 center_x /= w
                 center_y /= h
@@ -473,7 +473,7 @@ class AutomaticPickNode(Node):
                     data['/**']['ros__parameters']['pick_stop_pixel_coordinate'] = [self.pick_stop_x, self.pick_stop_y]
                     common.save_yaml_data(data, self.config_path)
                     self.debug = False
-                self.get_logger().info('x_y: ' + str([object_center_x, object_center_y]))  # Print the pixel of the current object's center(打印当前物体中心的像素)
+                self.get_logger().info('x_y: ' + str([object_center_x, object_center_y]))  # Print the pixel of the current object's center(打印当前物体中心的像�?
             elif object_center_x > 0:
                 ########Motor PID processing(电机pid处理)#########
                 # Use the x and y coordinates of the image's center point as the set value, and the current x and y coordinates as the input(以图像的中心点的x，y坐标作为设定的值，以当前x，y坐标作为输入)#
@@ -576,7 +576,7 @@ class AutomaticPickNode(Node):
                     data['/**']['ros__parameters']['place_stop_pixel_coordinate'] = [self.place_stop_x, self.place_stop_y]
                     common.save_yaml_data(data, self.config_path)
                     self.debug = False
-                self.get_logger().info('x_y: ' + str([object_center_x, object_center_y]))  # Print the pixel of the current object's center(打印当前物体中心的像素)
+                self.get_logger().info('x_y: ' + str([object_center_x, object_center_y]))  # Print the pixel of the current object's center(打印当前物体中心的像�?
             elif object_center_x > 0:
                 ########Motor PID processing(电机pid处理)#########
                 # Use the x and y coordinates of the image's center point as the set value, and the current x and y coordinates as the input(以图像的中心点的x，y坐标作为设定的值，以当前x，y坐标作为输入)#
@@ -628,7 +628,7 @@ class AutomaticPickNode(Node):
         if self.image_queue.full():
             # If the queue is full, remove the oldest image(如果队列已满，丢弃最旧的图像)
             self.image_queue.get()
-            # Put the image into the queue(将图像放入队列)
+            # Put the image into the queue(将图像放入队�?
         self.image_queue.put(cv2.resize(rgb_image, (640, 480)))
 
     def main(self):
@@ -643,8 +643,8 @@ class AutomaticPickNode(Node):
             
             result_image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
             if self.start_circle:
-                # Use mouse drag to specify a region by drawing a box (用鼠标拖拽一个框来指定区域)
-                if self.track_window:  # Once the tracking window is drawn, the target will be marked in real time (跟踪目标的窗口画出后，实时标出跟踪目标)
+                # Use mouse drag to specify a region by drawing a box (用鼠标拖拽一个框来指定区�?
+                if self.track_window:  # Once the tracking window is drawn, the target will be marked in real time (跟踪目标的窗口画出后，实时标出跟踪目�?
                     cv2.rectangle(result_image, (self.track_window[0], self.track_window[1]),
                                   (self.track_window[2], self.track_window[3]), (0, 0, 255), 2)
                 elif self.selection:  # The tracking window follows the mouse in real time while dragging (跟踪目标的窗口随鼠标拖动实时显示)
@@ -681,7 +681,7 @@ class AutomaticPickNode(Node):
                     self.color_picker = ColorPicker(point, 10)
                     self.box = []
                 
-            if self.color_picker is not None:  # Color pick exists(拾取器存在)
+            if self.color_picker is not None:  # Color pick exists(拾取器存�?
                 target_color, result_image = self.color_picker(image, result_image)
                 if target_color is not None:
                     self.color_picker = None
@@ -708,7 +708,7 @@ class AutomaticPickNode(Node):
                 
                     cv2.line(result_image, (self.pick_stop_x, self.pick_stop_y - 10), (self.pick_stop_x, self.pick_stop_y + 10), (0, 255, 255), 2)
                     cv2.line(result_image, (self.pick_stop_x - 10, self.pick_stop_y), (self.pick_stop_x + 10, self.pick_stop_y), (0, 255, 255), 2)
-            # if self.color_picker is not None:  # Color pick exists(拾取器存在)
+            # if self.color_picker is not None:  # Color pick exists(拾取器存�?
                 # target_color, result_image = self.color_picker(image, result_image)
                 # if target_color is not None:
                     # self.color_picker = None

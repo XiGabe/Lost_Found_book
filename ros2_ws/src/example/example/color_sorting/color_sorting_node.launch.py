@@ -19,8 +19,8 @@ def launch_setup(context):
         controller_package_path = get_package_share_directory('controller')
         example_package_path = get_package_share_directory('example')
     else:
-        controller_package_path = '/home/ubuntu/ros2_ws/src/driver/controller'
-        example_package_path = '/home/ubuntu/ros2_ws/src/example'
+        controller_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/driver/controller'
+        example_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/example'
     color_detect_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(example_package_path, 'example/color_detect/color_detect_node.launch.py')),

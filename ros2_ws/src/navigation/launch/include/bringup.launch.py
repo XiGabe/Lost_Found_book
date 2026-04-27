@@ -14,7 +14,7 @@ def launch_setup(context):
     if compiled == 'True':
         navigation_package_path = get_package_share_directory('navigation')
     else:
-        navigation_package_path = '/home/ubuntu/ros2_ws/src/navigation'
+        navigation_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/navigation'
 
     # Create the launch configuration variables
     rtabmap = LaunchConfiguration('rtabmap')

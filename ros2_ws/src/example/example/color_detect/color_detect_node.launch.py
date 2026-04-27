@@ -17,8 +17,8 @@ def launch_setup(context):
         peripherals_package_path = get_package_share_directory('peripherals')
         example_package_path = get_package_share_directory('example')
     else:
-        peripherals_package_path = '/home/ubuntu/ros2_ws/src/peripherals'
-        example_package_path = '/home/ubuntu/ros2_ws/src/example'
+        peripherals_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/peripherals'
+        example_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/example'
     depth_camera_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(peripherals_package_path, 'launch/depth_camera.launch.py')),

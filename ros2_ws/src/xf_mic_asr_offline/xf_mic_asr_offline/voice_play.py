@@ -5,7 +5,7 @@
 import os
 from speech import speech
 
-wav_path = '/home/ubuntu/ros2_ws/src/xf_mic_asr_offline/feedback_voice'
+wav_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/xf_mic_asr_offline/feedback_voice'
 
 def get_path(f, language='Chinese'):
     if language == 'Chinese':

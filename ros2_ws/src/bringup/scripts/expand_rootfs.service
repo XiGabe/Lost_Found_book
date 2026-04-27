@@ -5,7 +5,7 @@ After=NetworkManager.service time-sync.target
 [Service]
 Type=simple
 KillMode=mixed
-ExecStart=/home/ubuntu/ros2_ws/.expand_rootfs.sh
+ExecStart=/home/ubuntu/Lost_Found_book/ros2_ws/.expand_rootfs.sh
 StandardOutput=null
 StandardError=null
 

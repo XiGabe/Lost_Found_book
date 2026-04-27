@@ -18,9 +18,9 @@ def launch_setup(context):
         kinematics_package_path = get_package_share_directory('kinematics')
         example_package_path = get_package_share_directory('example')
     else:
-        controller_package_path = '/home/ubuntu/ros2_ws/src/driver/controller'
-        kinematics_package_path = '/home/ubuntu/ros2_ws/src/driver/kinematics'
-        example_package_path = '/home/ubuntu/ros2_ws/src/example'
+        controller_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/driver/controller'
+        kinematics_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/driver/kinematics'
+        example_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/example'
 
     controller_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(

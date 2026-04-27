@@ -28,7 +28,7 @@ def generate_launch_description():
     if compiled == 'True':
         peripherals_package_path = get_package_share_directory('peripherals')
     else:
-        peripherals_package_path = '/home/ubuntu/ros2_ws/src/peripherals'
+        peripherals_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/peripherals'
 
     if camera_type == 'Dabai':
         camera_launch = IncludeLaunchDescription(

@@ -3,7 +3,7 @@
 source ~/.bashrc
 
 source /opt/ros/humble/setup.bash
-source ~/ros2_ws/install/setup.bash
+source ~/Lost_Found_book/ros2_ws/install/setup.bash
 source ~/microros_ws/install/setup.bash
 
 # Track PIDs

@@ -11,7 +11,7 @@ def launch_setup(context):
         appid = LaunchConfiguration('appid', default="'3f498ac9'")
         enable_setting = LaunchConfiguration('enable_setting', default='false')
         confidence = LaunchConfiguration('confidence', default='18')  # 语音识别结果自信度阈值，取值：0-100(voice recognition result confidence ranging from 0 to 100)
-        seconds_per_order = LaunchConfiguration('seconds_per_order', default='15')  # 每次语音指令录音长度，单位：秒(recording length of each voice command in seconds)
+        seconds_per_order = LaunchConfiguration('seconds_per_order', default='15')  # 每次语音指令录音长度，单位：�?recording length of each voice command in seconds)
         chinese_awake_words = LaunchConfiguration('chinese_awake_words', default='xiao3 huan4 xiao3 huan4')
         english_awake_words = LaunchConfiguration('english_awake_words', default='hello hi wonder')
         language = LaunchConfiguration('language', default=os.environ['ASR_LANGUAGE']).perform(context)
@@ -52,7 +52,7 @@ def launch_setup(context):
             executable="voice_control",
             output='screen',
             parameters=[{"appid": appid, 
-                         "source_path": "/home/ubuntu/ros2_ws/src/xf_mic_asr_offline"}],
+                         "source_path": "/home/ubuntu/Lost_Found_book/ros2_ws/src/xf_mic_asr_offline"}],
         )
 
         return [

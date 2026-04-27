@@ -10,7 +10,7 @@ def launch_setup(context):
     if compiled == 'True':
         app_package_path = get_package_share_directory('app')
     else:
-        app_package_path = '/home/ubuntu/ros2_ws/src/app'
+        app_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/app'
 
     lidar_node_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(

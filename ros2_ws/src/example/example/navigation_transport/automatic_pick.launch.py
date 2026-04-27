@@ -13,8 +13,8 @@ def launch_setup(context):
         slam_package_path = get_package_share_directory('slam')
         example_package_path = get_package_share_directory('example')
     else:
-        slam_package_path = '/home/ubuntu/ros2_ws/src/slam'
-        example_package_path = '/home/ubuntu/ros2_ws/src/example'
+        slam_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/slam'
+        example_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/example'
 
     debug = LaunchConfiguration('debug', default='false')
     broadcast = LaunchConfiguration('broadcast', default='false')

@@ -48,7 +48,7 @@ class ColorSortingNode(Node):
         self.create_subscription(Image, '/color_detect/image_result', self.image_callback, 1)
         timer_cb_group = ReentrantCallbackGroup()
         self.create_service(Trigger, '~/start', self.start_srv_callback, callback_group=timer_cb_group) # 进入玩法(enter game)
-        self.create_service(Trigger, '~/stop', self.stop_srv_callback, callback_group=timer_cb_group) # 退出玩法(exit game)
+        self.create_service(Trigger, '~/stop', self.stop_srv_callback, callback_group=timer_cb_group) # 退出玩�?exit game)
 
         self.controller = ActionGroupController(self.create_publisher(ServosPosition, 'servo_controller', 1), '/home/ubuntu/software/arm_pc/ActionGroups')
         self.client = self.create_client(Trigger, '/controller_manager/init_finish')
@@ -213,7 +213,7 @@ class ColorSortingNode(Node):
                         roi['x_max'] = self.pick_roi[3]
                         roi['y_min'] = self.pick_roi[0]
                         roi['y_max'] = self.pick_roi[1]
-                        common.save_yaml_data(data, '/home/ubuntu/ros2_ws/src/example/config/color_sorting_roi.yaml')
+                        common.save_yaml_data(data, '/home/ubuntu/Lost_Found_book/ros2_ws/src/example/config/color_sorting_roi.yaml')
                         self.start_srv_callback(Trigger.Request(), Trigger.Response())
                         self.debug = False
                     self.get_logger().info(str([self.center.y - 10, self.center.y + 10, self.center.x - 10, self.center.x + 10]))
@@ -225,7 +225,7 @@ class ColorSortingNode(Node):
                     cv2.rectangle(image, (self.pick_roi[2] - 25, self.pick_roi[0] - 25), (self.pick_roi[3] + 25, self.pick_roi[1] + 25), (0, 255, 255), 2)
                 cv2.imshow('image', image)
                 key = cv2.waitKey(1)
-                if key == ord('q') or key == 27:  # 按q或者esc退出(press q or esc to exit)
+                if key == ord('q') or key == 27:  # 按q或者esc退�?press q or esc to exit)
                     self.running = False
         self.controller.run_action('init')
         rclpy.shutdown()
@@ -237,7 +237,7 @@ class ColorSortingNode(Node):
         if self.image_queue.full():
             # 如果队列已满，丢弃最旧的图像(if the queue is full, discard the oldest image)
             self.image_queue.get()
-            # 将图像放入队列(put the image into the queue)
+            # 将图像放入队�?put the image into the queue)
         self.image_queue.put(rgb_image)
 
 def main():

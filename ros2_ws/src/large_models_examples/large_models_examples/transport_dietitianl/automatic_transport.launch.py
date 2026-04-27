@@ -13,8 +13,8 @@ def launch_setup(context):
         slam_package_path = get_package_share_directory('slam')
         example_package_path = get_package_share_directory('large_models_examples')
     else:
-        slam_package_path = '/home/ubuntu/ros2_ws/src/slam'
-        example_package_path = '/home/ubuntu/ros2_ws/src/large_models_examples'
+        slam_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/slam'
+        example_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/large_models_examples'
 
     debug = LaunchConfiguration('debug', default='false')
     enable_display = LaunchConfiguration('enable_display', default='true')

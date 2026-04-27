@@ -9,7 +9,7 @@ def generate_launch_description():
     if compiled == 'True':
         calibration_package_path = get_package_share_directory('calibration')
     else:
-        calibration_package_path = '/home/ubuntu/ros2_ws/src/calibration'
+        calibration_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/calibration'
     imu_calib_node = Node(
         package='imu_calib',
         executable='apply_calib',

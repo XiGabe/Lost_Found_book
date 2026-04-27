@@ -15,9 +15,9 @@ def launch_setup(context):
         large_models_examples_package_path = get_package_share_directory('large_models_examples')
         large_models_package_path = get_package_share_directory('large_models')
     else:
-        slam_package_path = '/home/ubuntu/ros2_ws/src/slam'
-        large_models_examples_package_path = '/home/ubuntu/ros2_ws/src/large_models_examples'
-        large_models_package_path = '/home/ubuntu/ros2_ws/src/large_models/large_models'
+        slam_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/slam'
+        large_models_examples_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/large_models_examples'
+        large_models_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/large_models/large_models'
 
     mode = LaunchConfiguration('mode', default=1)
     mode_arg = DeclareLaunchArgument('mode', default_value=mode)

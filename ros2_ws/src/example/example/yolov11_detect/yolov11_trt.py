@@ -594,8 +594,8 @@ if __name__ == "__main__":
     test = True
     running = True
     if test:
-        PLUGIN_LIBRARY = "/home/ubuntu/ros2_ws/src/example/example/yolov8_detect/libmyplugins.so"
-        engine_file_path = "/home/ubuntu/ros2_ws/src/example/example/yolov8_detect/garbage_classification_640s.engine"
+        PLUGIN_LIBRARY = "/home/ubuntu/Lost_Found_book/ros2_ws/src/example/example/yolov8_detect/libmyplugins.so"
+        engine_file_path = "/home/ubuntu/Lost_Found_book/ros2_ws/src/example/example/yolov8_detect/garbage_classification_640s.engine"
 
         ctypes.CDLL(PLUGIN_LIBRARY)
 

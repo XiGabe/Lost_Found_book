@@ -14,8 +14,8 @@ def launch_setup(context):
         navigation_package_path = get_package_share_directory('navigation')
         xf_mic_asr_offline_package_path = get_package_share_directory('xf_mic_asr_offline')
     else:
-        navigation_package_path = '/home/ubuntu/ros2_ws/src/navigation'
-        xf_mic_asr_offline_package_path = '/home/ubuntu/ros2_ws/src/xf_mic_asr_offline'
+        navigation_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/navigation'
+        xf_mic_asr_offline_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/xf_mic_asr_offline'
 
     robot_name = LaunchConfiguration('robot_name', default=os.environ['HOST']).perform(context)
     master_name = LaunchConfiguration('master_name', default=os.environ['MASTER']).perform(context)

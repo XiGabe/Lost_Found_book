@@ -22,7 +22,7 @@ def generate_launch_description():
     if compiled == 'True':
         peripherals_package_path = get_package_share_directory('peripherals')
     else:
-        peripherals_package_path = '/home/ubuntu/ros2_ws/src/peripherals'
+        peripherals_package_path = '/home/ubuntu/Lost_Found_book/ros2_ws/src/peripherals'
 
     if lidar_type == 'LD19':
         lidar_launch_path = os.path.join(peripherals_package_path, 'launch/include/ldlidar_LD19.launch.py')
