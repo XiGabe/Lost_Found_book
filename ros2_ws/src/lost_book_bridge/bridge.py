@@ -3,6 +3,7 @@ import threading
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Int32
+from std_srvs.srv import Trigger
 
 CV_TIMEOUT_MS = 10_000
 
@@ -28,28 +29,51 @@ class Bridge(Node):
         self._push = push
         self._pull = pull
         self._nav_stopped = threading.Event()
+        self._cv_lock = threading.Lock()
 
         self.create_subscription(Int32, 'nav_status', self._nav_cb, 10)
         self._cv_pub = self.create_publisher(Int32, 'cv_status', 10)
+        self.create_service(Trigger, 'trigger_cv', self._trigger_cv_cb)
 
     def _nav_cb(self, msg):
         if msg.data == 1:
             self._nav_stopped.set()
+
+    def _trigger_cv_cb(self, _request, response):
+        success, message = self._trigger_cv()
+        response.success = success
+        response.message = message
+        return response
+
+    def _trigger_cv(self):
+        with self._cv_lock:
+            self.get_logger().info("Sending CV trigger")
+            self._push.send_string("stopped")
+
+            if self._pull.poll(timeout=CV_TIMEOUT_MS):
+                reply = self._pull.recv_string()
+                if reply == "ready":
+                    self.get_logger().info("CV responded ready")
+                    return True, "CV done"
+
+                message = f"Unexpected CV response: {reply}"
+                self.get_logger().error(message)
+                return False, message
+
+            message = "CV did not respond within timeout"
+            self.get_logger().error(message)
+            return False, message
 
     def run(self):
         while rclpy.ok():
             self._nav_stopped.wait()
             self._nav_stopped.clear()
 
-            self._push.send_string("stopped")
-
-            if self._pull.poll(timeout=CV_TIMEOUT_MS):
-                self._pull.recv_string()
+            success, _message = self._trigger_cv()
+            if success:
                 out = Int32()
                 out.data = 1
                 self._cv_pub.publish(out)
-            else:
-                self.get_logger().error("CV did not respond within timeout")
 
 
 def main():
