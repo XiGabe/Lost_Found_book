@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>lost_book_bridge</name>
+  <version>0.0.1</version>
+  <description>ROS2 bridge and camera-side nodes for lost book waypoint capture</description>
+  <maintainer email="rwl228@cornell.edu">Robbie Leslie</maintainer>
+  <license>Apache-2.0</license>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>python3-opencv</exec_depend>
+  <exec_depend>python3-zmq</exec_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
