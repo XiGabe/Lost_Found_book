@@ -10,6 +10,7 @@ from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.duration import Duration
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
+from std_srvs.srv import Trigger
 
 
 class WaypointLoopProxy(Node):
@@ -22,7 +23,17 @@ class WaypointLoopProxy(Node):
         self._current_goal_handle = None
         self._goal_finished_event = threading.Event()
         self._goal_finished_event.set()
+        self.declare_parameter('enable_cv_trigger', True)
+        self.declare_parameter('cv_service_name', 'trigger_cv')
+        self.declare_parameter('cv_service_wait_sec', 5.0)
+        self.declare_parameter('cv_response_timeout_sec', 30.0)
+
         self.navigator = BasicNavigator()
+        self._cv_client = self.create_client(
+            Trigger,
+            self.get_parameter('cv_service_name').value,
+            callback_group=callback_group,
+        )
         self.server = ActionServer(
             self,
             FollowWaypoints,
@@ -108,6 +119,11 @@ class WaypointLoopProxy(Node):
 
                     nav_result = self.navigator.getResult()
                     if nav_result == TaskResult.SUCCEEDED:
+                        if not self._trigger_cv_for_waypoint(index, goal_handle):
+                            missed_waypoints.append(index)
+                            self.get_logger().warn(
+                                f'CV trigger failed at waypoint {index + 1}, continuing'
+                            )
                         continue
 
                     missed_waypoints.append(index)
@@ -134,6 +150,53 @@ class WaypointLoopProxy(Node):
             result.missed_waypoints = []
         return result
 
+    def _trigger_cv_for_waypoint(self, index, goal_handle):
+        if not bool(self.get_parameter('enable_cv_trigger').value):
+            return True
+
+        service_name = self.get_parameter('cv_service_name').value
+        wait_sec = float(self.get_parameter('cv_service_wait_sec').value)
+        response_timeout_sec = float(self.get_parameter('cv_response_timeout_sec').value)
+
+        self.get_logger().info(
+            f'waypoint {index + 1} reached, waiting for CV service {service_name}'
+        )
+
+        while rclpy.ok() and not self._cv_client.service_is_ready():
+            if goal_handle.is_cancel_requested:
+                return False
+            if not self._cv_client.wait_for_service(timeout_sec=wait_sec):
+                self.get_logger().warn(f'CV service {service_name} not available yet')
+
+        self.get_logger().info(f'triggering CV at waypoint {index + 1}')
+        future = self._cv_client.call_async(Trigger.Request())
+        deadline = time.monotonic() + response_timeout_sec
+
+        while rclpy.ok() and not future.done():
+            if goal_handle.is_cancel_requested:
+                self.get_logger().info('cancel requested while waiting for CV response')
+                return False
+            if time.monotonic() > deadline:
+                self.get_logger().error(
+                    f'CV service timed out at waypoint {index + 1}'
+                )
+                return False
+            time.sleep(0.05)
+
+        response = future.result()
+        if response is None:
+            self.get_logger().error(f'CV service call failed at waypoint {index + 1}')
+            return False
+
+        if response.success:
+            self.get_logger().info(f'CV done at waypoint {index + 1}: {response.message}')
+            return True
+
+        self.get_logger().error(
+            f'CV returned failure at waypoint {index + 1}: {response.message}'
+        )
+        return False
+
 
 def main():
     rclpy.init()
@@ -150,4 +213,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
