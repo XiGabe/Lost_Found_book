@@ -4,6 +4,7 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Int32
 from std_srvs.srv import Trigger
+from lost_book_msgs.msg import Light
 
 CV_TIMEOUT_MS = 10_000
 
@@ -33,6 +34,7 @@ class Bridge(Node):
 
         self.create_subscription(Int32, 'nav_status', self._nav_cb, 10)
         self._cv_pub = self.create_publisher(Int32, 'cv_status', 10)
+        self._light_pub = self.create_publisher(Light, 'light', 10)
         self.create_service(Trigger, 'trigger_cv', self._trigger_cv_cb)
 
     def _nav_cb(self, msg):
@@ -45,13 +47,20 @@ class Bridge(Node):
         response.message = message
         return response
 
+    def _set_light(self, on: bool):
+        msg = Light()
+        msg.state = Light.ON if on else Light.OFF
+        self._light_pub.publish(msg)
+
     def _trigger_cv(self):
         with self._cv_lock:
             self.get_logger().info("Sending CV trigger")
+            self._set_light(True)
             self._push.send_string("stopped")
 
             if self._pull.poll(timeout=CV_TIMEOUT_MS):
                 reply = self._pull.recv_string()
+                self._set_light(False)
                 if reply == "ready":
                     self.get_logger().info("CV responded ready")
                     return True, "CV done"
@@ -60,6 +69,7 @@ class Bridge(Node):
                 self.get_logger().error(message)
                 return False, message
 
+            self._set_light(False)
             message = "CV did not respond within timeout"
             self.get_logger().error(message)
             return False, message
