@@ -76,12 +76,21 @@ rviz2 -d ${RVIZ_CONFIG}
 exec bash
 "
 
+open_terminal() {
+    local title="$1"
+    local command="$2"
+
+    gnome-terminal --title="${title}" -- bash -lc "${command}" &
+}
+
 if command -v gnome-terminal >/dev/null 2>&1; then
-    gnome-terminal \
-        --tab --title="CV real" -- bash -lc "${cv_command}" \
-        --tab --title="Bridge + TOF" -- bash -lc "${bridge_command}" \
-        --tab --title="Navigation" -- bash -lc "${nav_command}" \
-        --tab --title="RViz" -- bash -lc "${rviz_command}"
+    open_terminal "CV real" "${cv_command}"
+    sleep 1
+    open_terminal "Bridge + TOF" "${bridge_command}"
+    sleep 1
+    open_terminal "Navigation" "${nav_command}"
+    sleep 1
+    open_terminal "RViz" "${rviz_command}"
 else
     echo "gnome-terminal is not available."
     echo "Please run these commands manually in four terminals:"
